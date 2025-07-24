@@ -22,3 +22,7 @@ cargo run --release --bin notary-server
 ```
 SERVER_PORT=4000 cargo run --release --example attestation_prove
 ```
+
+## Prerequisites
+
+- Ruby & Pod for ZKP2P React Native
