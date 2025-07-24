@@ -11,9 +11,9 @@ tlsn-prover = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alp
 tlsn-verifier = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
 tlsn-formats = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
 tlsn-tls-core = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
-tls-server-fixture = { git = "https://github.com/tlsnotary/tlsn.git", tag = "0.0.0" }
-tlsn-server-fixture = { git = "https://github.com/tlsnotary/tlsn.git", tag = "0.0.0" }
-tlsn-server-fixture-certs = { git = "https://github.com/tlsnotary/tlsn.git", tag = "0.0.0" }
+tls-server-fixture = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
+tlsn-server-fixture = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
+tlsn-server-fixture-certs = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
 spansy = { git = "https://github.com/tlsnotary/tlsn-utils", rev = "6168663" }
 
 bincode = "1.3"
