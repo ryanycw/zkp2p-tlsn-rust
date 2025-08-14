@@ -64,22 +64,51 @@ TLSNotary is a three-party protocol involving:
 
 ## Code Components
 
-### Dual-Phase Architecture
+### Modular Architecture
 
-- **Prover** (`attestation/prove.rs`): Implements dual-phase MPC-TLS protocol:
-  - **Phase 1**: Connects to `/all-transactions?direction=OUTGOING` to verify transaction ownership
-  - **Phase 2**: Connects to `/gateway/v3/profiles/{PROFILE_ID}/transfers/{TRANSACTION_ID}` for payment details
-  - Uses single MPC-TLS session for both requests, generating combined cryptographic attestation
+The codebase follows a modular design pattern with clear separation of concerns:
+
+#### Core Modules (`src/`)
+
+- **`attestation/`**: Attestation operations and file handling
+  - `analyze_transcript()`: Processes and logs transcript data
+  - `create_transcript_commitment()`: Creates cryptographic commitments
+  - `notarize_transcript()`: Requests notary attestation
+  - `save_attestation_files()`: Persists attestation to disk
+
+- **`http/`**: HTTP request building utilities
+  - `build_request()`: Constructs HTTP requests with common headers
+  - Handles header redaction for sensitive data
+
+- **`notary/`**: Notary server configuration and connection
+  - `NotaryConfig`: Configuration management from environment
+  - `request_notarization()`: Handles notarization request flow
+
+- **`providers/`**: Provider-specific implementations
+  - `wise.rs`: Wise.com specific logic and dual-phase execution
+  - `ServerConfig`: Generic server configuration
+
+- **`tls/`**: MPC-TLS session management
+  - `create_crypto_provider()`: TLS certificate verification setup
+  - `build_prover_config()`: Prover configuration
+  - `setup_mpc_tls_prover()`: MPC-TLS initialization
+
+#### Example Implementations (`attestation/`)
+
+- **Prover** (`prove.rs`): Orchestrates dual-phase MPC-TLS protocol:
+  - **Phase 1**: Verifies transaction ownership via transaction list
+  - **Phase 2**: Attests specific payment details
+  - Coordinates modules for end-to-end attestation flow
   
-- **Presenter** (`attestation/present.rs`): Creates selective disclosure presentations from dual-phase attestations:
-  - **Transaction List Disclosure**: Reveals only target transaction ID for ownership proof
-  - **Payment Details Disclosure**: Reveals essential ZKP2P fields (amount, currency, status, date)
-  - **Privacy Preservation**: Hides authentication credentials, account details, and other transactions
+- **Presenter** (`present.rs`): Creates selective disclosure presentations:
+  - **Transaction List Disclosure**: Reveals only target transaction ID
+  - **Payment Details Disclosure**: Reveals essential ZKP2P fields
+  - **Privacy Preservation**: Hides sensitive credentials and data
   
-- **Verifier** (`attestation/verify.rs`): Validates dual-phase presentations:
-  - **Ownership Verification**: Confirms transaction exists in user's authentic transaction list
-  - **Payment Verification**: Validates specific payment details against ZKP2P requirements
-  - **Cryptographic Integrity**: Ensures both phases were attested by trusted Notary without tampering
+- **Verifier** (`verify.rs`): Validates dual-phase presentations:
+  - **Ownership Verification**: Confirms transaction authenticity
+  - **Payment Verification**: Validates payment details
+  - **Cryptographic Integrity**: Ensures attestation validity
 
 ### Key Dependencies
 
@@ -102,17 +131,19 @@ cargo check                    # Type checking without compilation
 The project uses Cargo examples rather than binaries:
 
 ```bash
-# Run the prover (creates attestation)
-cargo run --release --example attestation_prove
+# Generate Wise transaction attestation (requires manual credential extraction)
+cargo run --release --example attestation_prove -- wise-transaction \
+  --wise-profile-id "12345" --wise-transaction-id "67890" \
+  --wise-cookie "session..." --wise-access-token "token..."
 
 # Create a presentation from attestation
-cargo run --release --example attestation_present
+cargo run --release --example attestation_present -- wise-transaction
 
 # Verify a presentation  
-cargo run --release --example attestation_verify
+cargo run --release --example attestation_verify -- wise-transaction
 
-# Run Wise transaction attestation
-cargo run --release --example attestation_prove -- wise-transaction
+# Test fixtures (development only)
+cargo run --release --example attestation_prove
 ```
 
 ### Testing Setup
@@ -151,10 +182,8 @@ SERVER_PORT=4000 cargo run --release --example attestation_prove
 **Wise.com Configuration:**
 - `WISE_HOST`: Wise web interface host (default: wise.com)
 - `WISE_PORT`: Wise web interface port (default: 443)
-- `WISE_PROFILE_ID`: User's Wise profile ID (required for WiseTransaction)
-- `WISE_TRANSACTION_ID`: Specific transaction ID to attest (required for WiseTransaction)
-- `WISE_COOKIE`: Session cookie for web authentication (required for WiseTransaction)
-- `WISE_ACCESS_TOKEN`: Web session access token (required for WiseTransaction)
+- `WISE_EMAIL`: Email for automated authentication (optional)
+- `WISE_PASSWORD`: Password for automated authentication (optional)
 
 ### Testing
 ```bash
@@ -164,9 +193,29 @@ cargo test --release    # Run tests in release mode
 
 ## File Structure
 
-- `src/lib.rs`: Core constants and utilities (MAX_SENT_DATA, MAX_RECV_DATA, ExampleType enum)
-- `attestation/`: Contains the three main workflow examples
-- `example-*.tlsn`: Generated attestation, secrets, and presentation files
+```
+src/
+├── lib.rs                 # Core constants and utilities (MAX_SENT_DATA, MAX_RECV_DATA, ExampleType)
+├── attestation/           # Attestation operations and file handling
+│   └── mod.rs            # Transcript analysis, commitment creation, notarization
+├── http/                  # HTTP request building
+│   └── mod.rs            # Request construction with headers
+├── notary/                # Notary server interaction
+│   └── mod.rs            # Notary client configuration and connection
+├── providers/             # Provider-specific logic
+│   ├── mod.rs            # Server configuration base
+│   └── wise.rs           # Wise.com specific implementation
+└── tls/                   # MPC-TLS session management
+    └── mod.rs            # TLS configuration and prover setup
+
+attestation/               # Example implementations
+├── prove.rs              # Dual-phase MPC-TLS orchestration
+├── present.rs            # Selective disclosure presentation creation
+└── verify.rs             # Presentation verification
+
+Generated files:
+- `example-*.tlsn`: Attestation, secrets, and presentation files
+```
 
 ## TLSNotary Configuration Notes
 
@@ -196,29 +245,28 @@ This implementation enables buyers in ZKP2P protocol to cryptographically prove 
 
 ### Setup Required
 1. Complete payment to seller through Wise.com
-2. Obtain web session credentials (Cookie and X-Access-Token) from browser dev tools
-3. Get your Wise profile ID from account settings
-4. Identify the payment ID you want to prove completion for
+2. Manually extract credentials from your browser after logging into Wise
+3. Identify the payment ID you want to prove completion for (from wise.com/all-transactions)
 
 ### ZKP2P Integration Flow
 ```bash
-# Set required environment variables for payment proof
-export WISE_PROFILE_ID="your_profile_id"
-export WISE_TRANSACTION_ID="your_payment_id" 
-export WISE_COOKIE="your_session_cookie"
-export WISE_ACCESS_TOKEN="your_access_token"
-
 # Configure production notary
 export NOTARY_HOST="notary.pse.dev"
 export NOTARY_PORT="7047"
+export NOTARY_TLS="true"
 
-# 1. Generate payment proof
-cargo run --release --example attestation_prove -- wise-transaction
+# 1. Extract credentials manually from browser (see README.md for detailed steps)
+# 2. Generate payment proof with CLI arguments
+cargo run --release --example attestation_prove -- wise-transaction \
+  --wise-profile-id "your_profile_id" \
+  --wise-transaction-id "your_payment_id" \
+  --wise-cookie "your_session_cookie" \
+  --wise-access-token "your_access_token"
 
-# 2. Create selective payment presentation  
+# 3. Create selective payment presentation  
 cargo run --release --example attestation_present -- wise-transaction
 
-# 3. Verify payment proof (typically done by ZKP2P smart contract)
+# 4. Verify payment proof (typically done by ZKP2P smart contract)
 cargo run --release --example attestation_verify -- wise-transaction
 ```
 
@@ -348,26 +396,21 @@ cargo run --release --bin notary-server
 cd /path/to/zkp2p-tlsn-rust
 cp .env.local .env
 
-# Edit .env with your real Wise credentials:
-# - Get WISE_COOKIE and WISE_ACCESS_TOKEN from browser dev tools
-# - Get WISE_PROFILE_ID from Wise account settings
-# - Get WISE_TRANSACTION_ID from a recent outgoing transaction
+# Manual credential extraction required - see README.md for steps
 ```
 
-**Step 3: Extract Wise Credentials**
-1. Login to wise.com in browser
-2. Open Developer Tools (F12) → Network tab
-3. Refresh page and click any wise.com request
-4. Copy headers:
-   - `Cookie`: Entire cookie string
-   - `X-Access-Token`: Token value
-5. Get Profile ID from account settings or URL
-6. Get Transaction ID from transaction history
-
-**Step 4: Run Dual-Phase Test**
+**Step 3: Run Manual Credential Extraction + Proving**
 ```bash
-# Test dual-phase proving
-cargo run --release --example attestation_prove -- wise-transaction
+# Get transaction ID from wise.com/all-transactions?direction=OUTGOING
+export TRANSACTION_ID="your_transaction_id"
+
+# Extract credentials manually from browser (see README.md for detailed steps)
+# Then run proving with your extracted credentials:
+cargo run --release --example attestation_prove -- wise-transaction \
+  --wise-profile-id "your_profile_id" \
+  --wise-transaction-id $TRANSACTION_ID \
+  --wise-cookie "your_cookie_header" \
+  --wise-access-token "your_access_token"
 
 # Create selective presentation
 cargo run --release --example attestation_present -- wise-transaction
@@ -378,6 +421,15 @@ cargo run --release --example attestation_verify -- wise-transaction
 
 **Expected Test Output:**
 ```
+🚀 ZKP2P Wise Authentication & Proving Pipeline
+🔐 Step 1: Extracting Wise credentials...
+✅ Wise authentication successful!
+📋 Extracted credentials:
+   Profile ID: 12345678
+   Cookie: session_id=abc123...
+   Access Token: eyJhbGciOiJIUz...
+
+🔐 Step 2: Running ZKP2P attestation proving...
 🚀 Starting ZKP2P payment verification via TLSNotary...
 📡 Connecting to Notary server: 127.0.0.1:7047
 🌐 Target server: wise.com (production HTTPS)
@@ -443,7 +495,8 @@ cargo build --release  # Host platform
 - ✅ `attestation/prove.rs`: Dual-phase MPC-TLS implementation
 - ✅ `attestation/present.rs`: Dual-request selective disclosure
 - ✅ `attestation/verify.rs`: Enhanced dual-phase verification
-- ✅ `CLAUDE.md`: Updated with binary distribution focus
+- ✅ `CLAUDE.md`: Updated with manual credential extraction focus
+- ✅ `README.md`: Updated with manual credential extraction instructions
 - ✅ `doc/PRD.md`: Updated with production binary requirements
 
 **Next Steps for Binary Development**:
