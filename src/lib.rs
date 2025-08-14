@@ -1,6 +1,12 @@
 use std::fmt;
 use serde_json::Value;
 
+pub mod attestation;
+pub mod http;
+pub mod notary;
+pub mod providers;
+pub mod tls;
+
 // Maximum number of bytes that can be sent from prover to server.
 // Increased for dual-phase requests (transaction list + transaction details)
 pub const MAX_SENT_DATA: usize = 1 << 13; // 8KB (was 4KB)
