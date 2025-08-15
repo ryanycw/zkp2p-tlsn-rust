@@ -15,6 +15,7 @@ pub fn build_request(
 
     let mut request_builder = Request::builder()
         .uri(uri)
+        .version(hyper::Version::HTTP_10)  // Force HTTP/1.0 to avoid chunked encoding
         .header("Host", server_name)
         .header("Accept", "*/*")
         // Using "identity" instructs the Server not to use compression for its HTTP response.
