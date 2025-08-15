@@ -57,29 +57,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // Prepare request configuration based on example type
-    // Note: For WiseTransaction, headers are handled internally by execute_dual_phase_requests
+    // Note: For WiseTransaction, headers are handled internally by execute_transaction_request
     let (initial_uri, extra_headers, server_config) = match &args.example_type {
         ExampleType::Json => (
-            "/formats/json",
+            "/formats/json".to_string(),
             vec![],
             providers::ServerConfig::test_fixture(),
         ),
         ExampleType::Html => (
-            "/formats/html",
+            "/formats/html".to_string(),
             vec![],
             providers::ServerConfig::test_fixture(),
         ),
         ExampleType::Authenticated => (
-            "/protected",
+            "/protected".to_string(),
             vec![("Authorization", "random_auth_token")],
             providers::ServerConfig::test_fixture(),
         ),
         ExampleType::WiseTransaction => {
-            // Validate required arguments early
-            args.wise_profile_id
+            // Validate required arguments
+            let profile_id = args.wise_profile_id
                 .as_ref()
                 .expect("--wise-profile-id required for wise-transaction");
-            args.wise_transaction_id
+            let transaction_id = args.wise_transaction_id
                 .as_ref()
                 .expect("--wise-transaction-id required for wise-transaction");
             args.wise_cookie
@@ -89,10 +89,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .as_ref()
                 .expect("--wise-access-token required for wise-transaction");
 
-            // Return transaction list endpoint for Phase 1 verification
-            // Headers will be created and used inside execute_dual_phase_requests
+            // Format the transaction endpoint directly
+            let endpoint = format!("/gateway/v3/profiles/{}/transfers/{}", profile_id, transaction_id);
+            
+            // Return transaction endpoint for direct attestation
             (
-                providers::wise::WiseConfig::transaction_list_endpoint(),
+                endpoint,
                 vec![], // Empty headers - they're handled internally
                 providers::ServerConfig::wise(),
             )
@@ -118,7 +120,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Phase 4: Dual-Request Execution - Two authenticated requests over single MPC-TLS session
 /// Phase 5: Cryptographic Proof Generation - Notary signs combined attestation
 async fn notarize(
-    initial_uri: &str,
+    initial_uri: String,
     extra_headers: Vec<(&str, &str)>,
     example_type: &ExampleType,
     args: &Args,
@@ -182,7 +184,7 @@ async fn notarize(
     // Execute requests based on example type
     match example_type {
         ExampleType::WiseTransaction => {
-            // Get Wise configuration for dual-phase requests
+            // Get Wise configuration for transaction request
             let wise_config = providers::wise::WiseConfig::new(
                 args.wise_profile_id.as_ref().unwrap().clone(),
                 args.wise_transaction_id.as_ref().unwrap().clone(),
@@ -190,8 +192,8 @@ async fn notarize(
                 args.wise_access_token.as_ref().unwrap().clone(),
             );
 
-            // Execute dual-phase Wise transaction verification
-            providers::wise::execute_dual_phase_requests(
+            // Execute single transaction attestation request
+            providers::wise::execute_transaction_request(
                 &mut request_sender,
                 &wise_config,
                 server_config.server_name,
@@ -199,9 +201,9 @@ async fn notarize(
             .await?;
         }
         _ => {
-            // Single-phase request for test fixtures
+            // Single request for test fixtures
             let request = http::build_request(
-                initial_uri,
+                &initial_uri,
                 server_config.server_name,
                 &extra_headers,
                 "Test fixture request",
