@@ -28,13 +28,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn std::error::Error>> {
     let presentation_path = zkp2p_tlsn_rust::get_file_path(example_type, "presentation");
-    
+
     println!("🔍 Verifying {:?} presentation...", example_type);
     println!("   Reading presentation from: {}", presentation_path);
 
     // Read the presentation from disk.
-    let presentation: Presentation = bincode::deserialize(&std::fs::read(&presentation_path)
-        .map_err(|e| format!("Failed to read presentation file {}: {}", presentation_path, e))?)?;
+    let presentation: Presentation =
+        bincode::deserialize(&std::fs::read(&presentation_path).map_err(|e| {
+            format!(
+                "Failed to read presentation file {}: {}",
+                presentation_path, e
+            )
+        })?)?;
 
     // Configure crypto provider based on example type
     let crypto_provider = match example_type {
@@ -79,7 +84,8 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
         transcript,
         // extensions, // Optionally, verify any custom extensions from prover/notary.
         ..
-    } = presentation.verify(&crypto_provider)
+    } = presentation
+        .verify(&crypto_provider)
         .map_err(|e| format!("Cryptographic verification failed: {}", e))?;
 
     // The time at which the connection was started.
@@ -94,27 +100,31 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
 
     println!("✅ Cryptographic verification successful!");
     println!();
-    
+
     match example_type {
         ExampleType::WiseTransaction => {
-            println!("============================================================================");
+            println!(
+                "============================================================================"
+            );
             println!("🎉 ZKP2P DUAL-PHASE PAYMENT VERIFICATION SUCCESSFUL");
-            println!("============================================================================");
+            println!(
+                "============================================================================"
+            );
             println!();
             println!("🔒 Verified Connection Details:");
             println!("   Server: {} (Wise.com payment platform)", server_name);
             println!("   Session Time: {}", time);
             println!("   Protocol: TLS 1.2 with MPC-TLS notarization");
             println!();
-            
+
             // Analyze the dual-phase transcript
             let sent_lines: Vec<&str> = sent.lines().collect();
             let recv_lines: Vec<&str> = recv.lines().collect();
-            
+
             // Look for dual-phase requests
             let mut phase1_detected = false;
             let mut phase2_detected = false;
-            
+
             for line in &sent_lines {
                 if line.contains("/all-transactions?direction=OUTGOING") {
                     phase1_detected = true;
@@ -127,55 +137,72 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
                     println!("   Request: GET {}", line.trim());
                 }
             }
-            
+
             if phase1_detected && phase2_detected {
                 println!("✅ Dual-phase verification confirmed: Both ownership and details proven");
             } else {
                 println!("⚠️  Warning: Expected dual-phase requests not detected in transcript");
             }
-            
+
             println!();
             println!("📊 ZKP2P Payment Verification Results:");
-            
+
             // Extract revealed payment data from the responses
             if recv_lines.len() > 0 {
                 // Look for JSON responses and extract payment details
                 let full_response = recv.clone();
-                
+
                 // Try to find payment details in the response
                 if let Some(start) = full_response.find("{\"resource\"") {
                     if let Some(end) = full_response[start..].find("}") {
-                        let json_str = &full_response[start..start+end+1];
-                        if let Ok(payment_json) = serde_json::from_str::<serde_json::Value>(json_str) {
+                        let json_str = &full_response[start..start + end + 1];
+                        if let Ok(payment_json) =
+                            serde_json::from_str::<serde_json::Value>(json_str)
+                        {
                             if let Some(resource) = payment_json.get("resource") {
                                 if let Some(id) = resource.get("id") {
-                                    println!("   ✓ Payment ID: {}", id.as_str().unwrap_or("[HIDDEN]"));
+                                    println!(
+                                        "   ✓ Payment ID: {}",
+                                        id.as_str().unwrap_or("[HIDDEN]")
+                                    );
                                 }
                             }
                             if let Some(amount) = payment_json.get("primaryAmount") {
-                                println!("   ✓ Payment Amount: {}", amount.as_str().unwrap_or("[HIDDEN]"));
+                                println!(
+                                    "   ✓ Payment Amount: {}",
+                                    amount.as_str().unwrap_or("[HIDDEN]")
+                                );
                             }
                             if let Some(currency) = payment_json.get("currency") {
-                                println!("   ✓ Currency: {}", currency.as_str().unwrap_or("[HIDDEN]"));
+                                println!(
+                                    "   ✓ Currency: {}",
+                                    currency.as_str().unwrap_or("[HIDDEN]")
+                                );
                             }
                             if let Some(status) = payment_json.get("status") {
-                                println!("   ✓ Payment Status: {}", status.as_str().unwrap_or("[HIDDEN]"));
+                                println!(
+                                    "   ✓ Payment Status: {}",
+                                    status.as_str().unwrap_or("[HIDDEN]")
+                                );
                             }
                             if let Some(date) = payment_json.get("visibleOn") {
-                                println!("   ✓ Payment Date: {}", date.as_str().unwrap_or("[HIDDEN]"));
+                                println!(
+                                    "   ✓ Payment Date: {}",
+                                    date.as_str().unwrap_or("[HIDDEN]")
+                                );
                             }
                         }
                     }
                 }
             }
-            
+
             println!();
             println!("🔐 Privacy Protection Verified:");
             println!("   ✓ Session credentials (Cookie, X-Access-Token): HIDDEN (shown as X)");
             println!("   ✓ Personal account information: HIDDEN");
             println!("   ✓ Other transactions in list: HIDDEN");
             println!("   ✓ Only essential payment verification data: REVEALED");
-            
+
             println!();
             println!("🔍 Full Transcript Analysis:");
             println!("   Note: 'X' represents data intentionally hidden by selective disclosure");
@@ -185,11 +212,15 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
             println!();
             println!("Data received from {}:", server_name);
             println!("{}", recv);
-            
+
             println!();
-            println!("============================================================================");
+            println!(
+                "============================================================================"
+            );
             println!("🎉 ZKP2P VERIFICATION COMPLETE - PAYMENT PROOF VALIDATED");
-            println!("============================================================================");
+            println!(
+                "============================================================================"
+            );
         }
         _ => {
             println!("-------------------------------------------------------------------");
@@ -208,7 +239,7 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
 
     println!();
     println!("✅ Verification process completed successfully!");
-    
+
     match example_type {
         ExampleType::WiseTransaction => {
             println!();
@@ -218,6 +249,6 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
         }
         _ => {}
     }
-    
+
     Ok(())
 }

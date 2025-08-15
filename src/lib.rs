@@ -1,5 +1,5 @@
-use std::fmt;
 use serde_json::Value;
+use std::fmt;
 
 pub mod attestation;
 pub mod http;
@@ -37,7 +37,10 @@ pub fn get_file_path(example_type: &ExampleType, content_type: &str) -> String {
 
 /// Utility function to verify transaction exists in transaction list
 /// Used in dual-phase attestation to prove transaction ownership before revealing details
-pub fn verify_transaction_in_list(transaction_list: &Value, target_transaction_id: &str) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn verify_transaction_in_list(
+    transaction_list: &Value,
+    target_transaction_id: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
     // Wise transaction list format: { "meta": {...}, "data": [transactions...] }
     let transactions = transaction_list
         .get("data")

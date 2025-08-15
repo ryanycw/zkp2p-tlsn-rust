@@ -12,7 +12,7 @@ pub fn build_request(
 ) -> Result<Request<Empty<Bytes>>, Box<dyn std::error::Error>> {
     println!("📡 Building request: {}", description);
     println!("   Endpoint: {}", uri);
-    
+
     let mut request_builder = Request::builder()
         .uri(uri)
         .header("Host", server_name)
@@ -22,7 +22,7 @@ pub fn build_request(
         .header("Accept-Encoding", "identity")
         .header("Connection", "close")
         .header("User-Agent", USER_AGENT);
-    
+
     for (key, value) in extra_headers {
         request_builder = request_builder.header(*key, *value);
         if !key.eq_ignore_ascii_case("Cookie") && !key.eq_ignore_ascii_case("X-Access-Token") {
@@ -31,6 +31,6 @@ pub fn build_request(
             println!("   Header: {}: [REDACTED]", key);
         }
     }
-    
+
     Ok(request_builder.body(Empty::<Bytes>::new())?)
 }

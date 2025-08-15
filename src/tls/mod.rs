@@ -1,10 +1,10 @@
+use crate::ExampleType;
 use tls_core::verify::WebPkiVerifier;
+use tls_server_fixture::CA_CERT_DER;
 use tlsn_common::config::ProtocolConfig;
 use tlsn_core::CryptoProvider;
 use tlsn_prover::{Prover, ProverConfig, TlsConfig};
-use tls_server_fixture::CA_CERT_DER;
 use tlsn_server_fixture_certs::{CLIENT_CERT, CLIENT_KEY};
-use crate::ExampleType;
 
 /// Creates a crypto provider based on the example type
 pub fn create_crypto_provider(example_type: &ExampleType) -> CryptoProvider {
@@ -38,7 +38,7 @@ pub fn build_prover_config(
     example_type: &ExampleType,
 ) -> Result<ProverConfig, Box<dyn std::error::Error>> {
     println!("🔧 Configuring MPC-TLS Prover for server: {}", server_name);
-    
+
     let mut builder = ProverConfig::builder();
     builder
         .server_name(server_name)
@@ -49,7 +49,7 @@ pub fn build_prover_config(
                 .build()?,
         )
         .crypto_provider(crypto_provider);
-    
+
     // Configure TLS client authentication based on target server requirements
     match example_type {
         ExampleType::WiseTransaction => {
@@ -67,7 +67,7 @@ pub fn build_prover_config(
             );
         }
     }
-    
+
     Ok(builder.build()?)
 }
 
@@ -75,16 +75,14 @@ pub fn build_prover_config(
 pub async fn setup_mpc_tls_prover<T>(
     prover_config: ProverConfig,
     notary_connection: T,
-) -> Result<tlsn_prover::Prover<tlsn_prover::state::Notarize>, Box<dyn std::error::Error>>
+) -> Result<tlsn_prover::Prover<tlsn_prover::state::Setup>, Box<dyn std::error::Error>>
 where
     T: futures::AsyncRead + futures::AsyncWrite + Send + Unpin + 'static,
 {
     println!("🤝 Setting up MPC-TLS collaboration with Notary...");
-    
-    let prover = Prover::new(prover_config)
-        .setup(notary_connection)
-        .await?;
-    
+
+    let prover = Prover::new(prover_config).setup(notary_connection).await?;
+
     Ok(prover)
 }
 
@@ -93,7 +91,10 @@ pub async fn connect_to_server(
     server_host: &str,
     server_port: u16,
 ) -> Result<tokio::net::TcpStream, Box<dyn std::error::Error>> {
-    println!("🔌 Connecting to target server: {}:{}", server_host, server_port);
+    println!(
+        "🔌 Connecting to target server: {}:{}",
+        server_host, server_port
+    );
     let socket = tokio::net::TcpStream::connect((server_host, server_port)).await?;
     Ok(socket)
 }
