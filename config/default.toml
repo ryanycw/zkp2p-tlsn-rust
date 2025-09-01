@@ -1,0 +1,16 @@
+user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+max_sent_data = 8192     # 8KB (1 << 13)
+max_recv_data = 262144   # 256KB (1 << 18)
+
+[paypal]
+host = "www.paypal.com"
+port = 443
+
+[wise]
+host = "wise.com"
+port = 443
+
+[notary]
+host = "127.0.0.1"
+port = 7047
+tls_enabled = true
