@@ -26,6 +26,7 @@ hex = "0.4"
 hyper = { version = "1.0", features = ["client", "http1"] }
 hyper-util = { version = "0.1", features = ["full"] }
 k256 = { version = "0.13", features = ["ecdsa"] }
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.35", features = [
   "rt",
@@ -35,23 +36,19 @@ tokio = { version = "1.35", features = [
   "io-std",
   "fs",
 ] }
-tokio-util = "0.7"
+tokio-util = "0.7.16"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+tracing-subscriber = "0.3.2"
+config = "0.15.15"
 
-[[example]]
-name = "attestation_prove"
+[[bin]]
+name = "zkp2p-prove"
 path = "attestation/prove.rs"
 
-[[example]]
-name = "attestation_present"
+[[bin]]
+name = "zkp2p-present"
 path = "attestation/present.rs"
 
-[[example]]
-name = "attestation_verify"
+[[bin]]
+name = "zkp2p-verify"
 path = "attestation/verify.rs"
-
-
-# [[example]]
-# name = "interactive"
-# path = "interactive/interactive.rs"
