@@ -1,253 +1,133 @@
 use clap::Parser;
 use hyper_util::rt::TokioIo;
-use tlsn_formats::http::HttpTranscript;
+use notary_client::NotaryClient;
+use tlsn_common::config::ProtocolConfig;
+use tlsn_core::{request::RequestConfig, transcript::TranscriptCommitConfig};
+use tlsn_prover::ProverConfig;
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 
-use zkp2p_tlsn_rust::{ExampleType, attestation, http, notary, providers, tls};
-
-// ZKP2P TLSNotary Prover Implementation for Wise Payment Verification
-//
-// This implementation demonstrates the TLSNotary three-party protocol (Prover, Notary, Verifier)
-// developed by Ethereum Foundation's Privacy and Scaling Explorations (PSE) team.
-//
-// ZKP2P Integration Purpose:
-// - Cryptographically prove completion of fiat payment through Wise
-// - Enable trustless verification of payment without exposing sensitive data
-// - Support decentralized on/off-ramp protocol for crypto-fiat exchanges
-//
-// TLSNotary Protocol Flow:
-// Phase 1: MPC-TLS Connection - Prover collaborates with Notary via MPC to establish
-//          secret-shared TLS session keys with wise.com
-// Phase 2: Payment Verification - Authenticated web requests occur with cryptographic guarantees
-// Phase 3: Notarization - Notary creates cryptographic payment proofs without seeing plaintext
-//
-// Critical: Wise.com sees only standard browser traffic - Notary is transparent
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// Type of payment proof to generate.
-    /// - Json/Html/Authenticated: Test fixtures for local development
-    /// - WiseTransaction: ZKP2P Wise payment verification via zkTLS/MPC-TLS
-    #[clap(default_value_t, value_enum)]
-    example_type: ExampleType,
-
-    /// Wise profile ID (required for wise-transaction)
-    #[clap(long)]
-    wise_profile_id: Option<String>,
-
-    /// Wise transaction ID to prove (required for wise-transaction)
-    #[clap(long)]
-    wise_transaction_id: Option<String>,
-
-    /// Wise session cookie (required for wise-transaction)
-    #[clap(long)]
-    wise_cookie: Option<String>,
-
-    /// Wise access token (required for wise-transaction)
-    #[clap(long)]
-    wise_access_token: Option<String>,
-}
+use zkp2p_tlsn_rust::{
+    config::AppConfig,
+    domain::{AuthArgs, ProviderConfig, ProviderType, server},
+    utils::{notary, providers, transcript},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Load environment variables from .env file
     dotenv::dotenv().ok();
+    let args = AuthArgs::parse();
+    // TODO: Add configurable logs for App & Server set up
+    let app_config =
+        AppConfig::new().map_err(|e| format!("Failed to load configuration: {}", e))?;
 
-    let args = Args::parse();
-
-    // Prepare request configuration based on example type
-    // Note: For WiseTransaction, headers are handled internally by execute_transaction_request
-    let (initial_uri, extra_headers, server_config) = match &args.example_type {
-        ExampleType::Json => (
-            "/formats/json".to_string(),
-            vec![],
-            providers::ServerConfig::test_fixture(),
-        ),
-        ExampleType::Html => (
-            "/formats/html".to_string(),
-            vec![],
-            providers::ServerConfig::test_fixture(),
-        ),
-        ExampleType::Authenticated => (
-            "/protected".to_string(),
-            vec![("Authorization", "random_auth_token")],
-            providers::ServerConfig::test_fixture(),
-        ),
-        ExampleType::WiseTransaction => {
-            // Validate required arguments
-            let profile_id = args.wise_profile_id
-                .as_ref()
-                .expect("--wise-profile-id required for wise-transaction");
-            let transaction_id = args.wise_transaction_id
-                .as_ref()
-                .expect("--wise-transaction-id required for wise-transaction");
-            args.wise_cookie
-                .as_ref()
-                .expect("--wise-cookie required for wise-transaction");
-            args.wise_access_token
-                .as_ref()
-                .expect("--wise-access-token required for wise-transaction");
-
-            // Format the transaction endpoint directly
-            let endpoint = format!("/gateway/v3/profiles/{}/transfers/{}", profile_id, transaction_id);
-            
-            // Return transaction endpoint for direct attestation
-            (
-                endpoint,
-                vec![], // Empty headers - they're handled internally
-                providers::ServerConfig::wise(),
-            )
-        }
+    let provider_type = match args.provider.as_str() {
+        "wise" => ProviderType::Wise,
+        "paypal" => ProviderType::PayPal,
+        provider => return Err(format!("Unsupported platform: {}", provider).into()),
     };
+    let provider_config = ProviderConfig::new(
+        provider_type.clone(),
+        args.profile_id.clone(),
+        args.transaction_id.clone(),
+        args.cookie.clone(),
+        args.access_token.clone(),
+    );
 
-    notarize(
-        initial_uri,
-        extra_headers,
-        &args.example_type,
-        &args,
-        server_config,
-    )
-    .await
+    let server_config = app_config.server_config(provider_type);
+
+    notarize(&provider_config, &server_config, &app_config).await
 }
 
-/// ZKP2P Payment Verification via TLSNotary MPC-TLS - Dual Phase Implementation
-///
-/// Implements enhanced TLSNotary protocol for secure payment proof generation:
-/// Phase 1: Transaction Ownership Verification - Proves transaction exists in user's list
-/// Phase 2: Transaction Details Attestation - Attests specific payment data
-/// Phase 3: MPC-TLS Connection Setup - Secret-share TLS keys with Notary  
-/// Phase 4: Dual-Request Execution - Two authenticated requests over single MPC-TLS session
-/// Phase 5: Cryptographic Proof Generation - Notary signs combined attestation
 async fn notarize(
-    initial_uri: String,
-    extra_headers: Vec<(&str, &str)>,
-    example_type: &ExampleType,
-    args: &Args,
-    server_config: providers::ServerConfig,
+    provider_config: &ProviderConfig,
+    server_config: &server::ServerConfig,
+    app_config: &zkp2p_tlsn_rust::config::AppConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-
-    println!("🚀 Starting ZKP2P payment verification via TLSNotary...");
-
+    tracing::info!("🚀 Starting ZKP2P payment verification via TLSNotary...");
     // Configure notary connection
-    let notary_config = notary::NotaryConfig::from_env(example_type);
-    let notary_client = notary_config.build_client();
-
+    let notary_client = NotaryClient::builder()
+        .host(&app_config.notary.server.host)
+        .port(app_config.notary.server.port)
+        .enable_tls(app_config.notary.tls_enabled)
+        .build()
+        .unwrap();
     // Request notarization from Notary server
     let accepted = notary::request_notarization(
         &notary_client,
-        zkp2p_tlsn_rust::MAX_SENT_DATA,
-        zkp2p_tlsn_rust::MAX_RECV_DATA,
+        app_config.max_sent_data,
+        app_config.max_recv_data,
     )
     .await?;
-
-    // Configure TLS certificate verification for target server
-    let crypto_provider = tls::create_crypto_provider(example_type);
-
     // Build prover configuration for MPC-TLS
-    let prover_config = tls::build_prover_config(
-        server_config.server_name,
-        zkp2p_tlsn_rust::MAX_SENT_DATA,
-        zkp2p_tlsn_rust::MAX_RECV_DATA,
-        crypto_provider,
-        example_type,
-    )?;
-
+    let prover_config = ProverConfig::builder()
+        .server_name(server_config.host.as_str())
+        .protocol_config(
+            ProtocolConfig::builder()
+                .max_sent_data(app_config.max_sent_data)
+                .max_recv_data(app_config.max_recv_data)
+                .build()?,
+        )
+        .crypto_provider(tlsn_core::CryptoProvider::default())
+        .build()
+        .ok()
+        .ok_or("Failed to build prover config")?;
     // Initialize MPC-TLS Prover with Notary collaboration
-    let prover = tls::setup_mpc_tls_prover(prover_config, accepted.io.compat()).await?;
-
+    tracing::info!("🤝 Setting up MPC-TLS collaboration with Notary...");
+    let prover = tlsn_prover::Prover::new(prover_config)
+        .setup(accepted.io.compat())
+        .await?;
     // Establish TCP connection to target server
-    let client_socket = tls::connect_to_server(&server_config.host, server_config.port).await?;
-
+    let client_socket =
+        tokio::net::TcpStream::connect((server_config.host.as_str(), server_config.port)).await?;
     // Establish MPC-TLS connection with target server
-    // CRITICAL: This creates a three-way MPC connection (Prover ↔ Notary ↔ Server)
     // - Prover and Notary secret-share TLS session keys via MPC
     // - Target server sees standard TLS 1.2 connection (Notary is transparent)
     // - All data encryption/decryption occurs through MPC with Notary
-    println!("🔐 Establishing MPC-TLS connection (Prover ↔ Notary ↔ Server)...");
+    tracing::info!("🔐 Establishing MPC-TLS connection (Prover ↔ Notary ↔ Server)...");
     let (mpc_tls_connection, prover_fut) = prover.connect(client_socket.compat()).await?;
     let mpc_tls_connection = TokioIo::new(mpc_tls_connection.compat());
-
-    println!("✅ MPC-TLS connection established - Notary transparent to server");
-
+    tracing::info!("✅ MPC-TLS connection established - Notary transparent to server");
     // Spawn the prover task to be run concurrently in the background
     let prover_task = tokio::spawn(prover_fut);
-
     // Attach the hyper HTTP client to the connection
     let (mut request_sender, connection) =
         hyper::client::conn::http1::handshake(mpc_tls_connection).await?;
-
     // Spawn the HTTP task to be run concurrently in the background
     tokio::spawn(connection);
-
-    // Execute requests based on example type
-    match example_type {
-        ExampleType::WiseTransaction => {
-            // Get Wise configuration for transaction request
-            let wise_config = providers::wise::WiseConfig::new(
-                args.wise_profile_id.as_ref().unwrap().clone(),
-                args.wise_transaction_id.as_ref().unwrap().clone(),
-                args.wise_cookie.as_ref().unwrap().clone(),
-                args.wise_access_token.as_ref().unwrap().clone(),
-            );
-
-            // Execute single transaction attestation request
-            providers::wise::execute_transaction_request(
-                &mut request_sender,
-                &wise_config,
-                server_config.server_name,
-            )
-            .await?;
-        }
-        _ => {
-            // Single request for test fixtures
-            let request = http::build_request(
-                &initial_uri,
-                server_config.server_name,
-                &extra_headers,
-                "Test fixture request",
-            )?;
-
-            let response = request_sender.send_request(request).await?;
-
-            if response.status() != hyper::StatusCode::OK {
-                return Err(
-                    format!("❌ Server returned error status: {}", response.status()).into(),
-                );
-            }
-
-            println!("✅ Test response received successfully");
-        }
-    }
-
-    // Complete MPC-TLS session and retrieve transcript
-    println!("🏁 Completing MPC-TLS session...");
+    tracing::info!("🔄 Executing transaction request...");
+    // Execute transaction request using unified function
+    providers::execute_transaction_request(
+        &mut request_sender,
+        &provider_config,
+        &server_config,
+        &app_config.user_agent,
+    )
+    .await?;
+    tracing::info!("🏁 Transaction request executed - Completing MPC-TLS session...");
     let mut prover = prover_task.await??;
+    let transcript = prover.transcript();
+    tracing::info!("🔄 Committing to transcript...");
+    let mut builder = TranscriptCommitConfig::builder(transcript);
+    // Commit to the entire sent data (the request)
+    builder.commit_sent(&(0..prover.transcript().sent().len()))?;
+    // For chunked responses, commit to the entire received data
+    // The actual parsing will be done during presentation
+    builder.commit_recv(&(0..prover.transcript().received().len()))?;
+    let transcript_commit = builder.build()?;
+    // Build an attestation request.
+    tracing::info!("🔄 Building attestation request...");
+    let mut builder = RequestConfig::builder();
+    builder.transcript_commit(transcript_commit);
+    let request_config = builder.build()?;
 
-    // Parse the HTTP transcript captured through MPC-TLS
-    let transcript = HttpTranscript::parse(prover.transcript())?;
-    println!("📋 HTTP transcript parsed successfully");
+    #[allow(deprecated)]
+    let (attestation, secrets) = prover.notarize(&request_config).await?;
 
-    // Analyze transcript based on example type
-    attestation::analyze_transcript(&transcript, example_type)?;
+    println!("Notarization complete!");
 
-    // Create cryptographic commitments to transcript data
-    let transcript_commit =
-        attestation::create_transcript_commitment(prover.transcript(), &transcript, example_type)?;
-
-    // Request Notary attestation of committed data
-    // CRITICAL: Notary creates cryptographic signatures without seeing:
-    // - Plaintext payment details or transaction list data
-    // - Session credentials (Cookie, X-Access-Token)
-    // - Server identity (wise.com)
-    // - Personal information (account numbers, names, etc.)
-    // - The Notary can attest to both transaction ownership AND payment details
-    let (attestation_data, secrets) =
-        attestation::notarize_transcript(&mut prover, transcript_commit, example_type).await?;
-
-    // Save attestation and secrets to disk
-    attestation::save_attestation_files(&attestation_data, &secrets, example_type).await?;
+    transcript::save_attestation_files(&provider_config.provider_type, &attestation, &secrets)
+        .await?;
 
     Ok(())
 }
