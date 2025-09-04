@@ -1,4 +1,12 @@
 use crate::domain::ProviderType;
+use clap::Parser;
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+pub struct ProviderArgs {
+    #[clap(long)]
+    pub provider: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct ProviderConfig {
