@@ -4,7 +4,7 @@ use clap::Parser;
 #[command(version, about, long_about = None)]
 pub struct AuthArgs {
     #[clap(long)]
-    pub platform: String,
+    pub provider: String,
     #[clap(long)]
     pub profile_id: Option<String>,
     #[clap(long)]
