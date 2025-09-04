@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-This PRD outlines the implementation of ZKP2P payment verification using TLSNotary for Wise.com, leveraging the Ethereum Foundation's Privacy and Scaling Explorations (PSE) protocol. **The primary deliverable is a production-ready binary prover that generates cryptographic proofs of fiat payment completion. This binary will be distributed to the [ZKP2P React Native SDK](https://github.com/zkp2p/zkp2p-react-native-sdk) repository for mobile integration.** The system uses Multi-Party Computation (MPC) TLS with a dual-phase architecture to enable buyers to prove payment completion to sellers while maintaining complete privacy of sensitive financial data.
+This PRD outlines the implementation of ZKP2P payment verification using TLSNotary for Wise.com, leveraging the Ethereum Foundation's Privacy and Scaling Explorations (PSE) protocol. **The primary deliverable is a production-ready binary prover that generates cryptographic proofs of fiat payment completion. This binary will be distributed to the [ZKP2P React Native SDK](https://github.com/zkp2p/zkp2p-react-native-sdk) repository for mobile integration.** The system uses Multi-Party Computation (MPC) TLS with direct transaction detail attestation to enable buyers to prove payment completion to sellers while maintaining complete privacy of sensitive financial data.
 
 ## 1. Product Overview
 
@@ -23,23 +23,20 @@ This PRD outlines the implementation of ZKP2P payment verification using TLSNota
 - **Privacy Requirements**: Users cannot safely share banking credentials or account details for payment verification
 
 ### 1.2 Solution
-A ZKP2P payment verification system leveraging **dual-phase TLSNotary MPC-TLS protocol** that:
-- **Phase 1**: Proves transaction ownership by verifying the target transaction exists in user's authentic transaction list
-- **Phase 2**: Attests specific payment details for ZKP2P verification requirements
-- Prevents transaction ID enumeration attacks through ownership verification
-- Establishes single MPC-TLS connection where Notary participates in verification without seeing payment details
+A ZKP2P payment verification system leveraging **TLSNotary MPC-TLS protocol** that:
+- **Direct Attestation**: Directly attests specific payment details for ZKP2P verification requirements
+- Establishes MPC-TLS connection where Notary participates in verification without seeing payment details
 - Provides selective disclosure of payment data proving only essential verification facts
 - Maintains complete privacy of session credentials, account information, and personal data
 - Generates portable, cryptographic payment proofs signed by trusted Notary servers
 - Delivers verifiable payment completion evidence for ZKP2P smart contracts enabling automated escrow release
 
 ### 1.3 Success Metrics
-- Successfully attest Wise transaction data with 99.9% reliability using dual-phase verification
-- Generate proofs in under 45 seconds (increased for dual-phase operations)
-- Support all major Wise transaction types with ownership verification
+- Successfully attest Wise transaction data with 99.9% reliability using direct attestation
+- Generate proofs in under 30 seconds for single-phase operations
+- Support all major Wise transaction types
 - Zero exposure of user authentication credentials in proofs
-- Prevent transaction ID enumeration attacks through ownership proof
-- Maintain privacy of non-target transactions in user's transaction list
+- Maintain complete privacy of sensitive financial data
 
 ## 2. User Stories
 
@@ -112,60 +109,52 @@ A ZKP2P payment verification system leveraging **dual-phase TLSNotary MPC-TLS pr
 ### 3.1 Functional Requirements
 
 #### 3.1.1 Core Attestation Features
-- **F-001**: Generate dual-phase TLSNotary attestation for Wise.com transaction verification
-- **F-002**: Support dual-phase endpoints:
-  - Phase 1: `/all-transactions?direction=OUTGOING` (ownership verification)
-  - Phase 2: `/gateway/v3/profiles/{PROFILE_ID}/transfers/{TRANSACTION_ID}` (payment details)
-- **F-003**: Handle Cookie and X-Access-Token web session authentication for both phases
-- **F-004**: Create selective disclosure presentations from dual-phase attestations
-- **F-005**: Verify dual-phase attestations cryptographically
-- **F-006**: Validate transaction ownership before revealing payment details
+- **F-001**: Generate TLSNotary attestation for Wise.com transaction verification
+- **F-002**: Support transaction details endpoint:
+  - `/gateway/v3/profiles/{PROFILE_ID}/transfers/{TRANSACTION_ID}` (payment details)
+- **F-003**: Handle Cookie and X-Access-Token web session authentication
+- **F-004**: Create selective disclosure presentations from transaction attestations
+- **F-005**: Verify transaction attestations cryptographically
 
 #### 3.1.2 Data Fields Support
-**Phase 1 - Transaction List Verification:**
-- **F-007**: Attest transaction list structure (`meta.totalCount`)
-- **F-008**: Prove target transaction exists in user's authentic list
-- **F-009**: Hide all other transactions in list for privacy
-
-**Phase 2 - Payment Details Attestation:**
-- **F-010**: Attest transaction amount (`primaryAmount`)
-- **F-011**: Attest transaction currency (`currency`)
-- **F-012**: Attest transaction ID (`resource.id`)
-- **F-013**: Attest transaction date (`visibleOn`)
-- **F-014**: Attest transaction status (`status`)
-- **F-015**: Attest recipient information (`title`)
+**Payment Details Attestation:**
+- **F-006**: Attest transaction amount (`primaryAmount`)
+- **F-007**: Attest transaction currency (`currency`)
+- **F-008**: Attest transaction ID (`resource.id`)
+- **F-009**: Attest transaction date (`visibleOn`)
+- **F-010**: Attest transaction status (`status`)
+- **F-011**: Attest recipient information (`title`)
 
 #### 3.1.3 Security Requirements
-- **F-016**: Hide web session credentials in presentations for both phases
-- **F-017**: Use production TLS verification for Wise.com
-- **F-018**: Support configurable notary server connections
-- **F-019**: Validate certificate chains for production endpoints
-- **F-020**: Prevent transaction ID enumeration through ownership verification
-- **F-021**: Ensure single MPC-TLS session integrity across both phases
+- **F-012**: Hide web session credentials in presentations
+- **F-013**: Use production TLS verification for Wise.com
+- **F-014**: Support configurable notary server connections
+- **F-015**: Validate certificate chains for production endpoints
+- **F-016**: Ensure MPC-TLS session integrity
 
 #### 3.1.4 Binary CLI Requirements
-- **F-022**: Create production binary with comprehensive CLI interface using `clap`
-- **F-023**: Support JSON-based configuration input and structured result output
-- **F-024**: Implement clear error codes and messages for external integration
-- **F-025**: Handle various file system scenarios and permissions
-- **F-026**: Support cross-platform compilation for iOS, Android, and desktop targets
-- **F-027**: Optimize binary size for efficient distribution
-- **F-028**: Provide detailed logging and debugging capabilities
+- **F-017**: Create production binary with comprehensive CLI interface using `clap`
+- **F-018**: Support JSON-based configuration input and structured result output
+- **F-019**: Implement clear error codes and messages for external integration
+- **F-020**: Handle various file system scenarios and permissions
+- **F-021**: Support cross-platform compilation for iOS, Android, and desktop targets
+- **F-022**: Optimize binary size for efficient distribution
+- **F-023**: Provide detailed logging and debugging capabilities
 
 #### 3.1.5 Performance and Integration Requirements
-- **F-029**: Optimize memory usage for resource-constrained environments
-- **F-030**: Handle network interruptions and reconnection gracefully
-- **F-031**: Support efficient file-based I/O operations
-- **F-032**: Implement progress reporting through standard output
-- **F-033**: Provide comprehensive documentation and examples
+- **F-024**: Optimize memory usage for resource-constrained environments
+- **F-025**: Handle network interruptions and reconnection gracefully
+- **F-026**: Support efficient file-based I/O operations
+- **F-027**: Implement progress reporting through standard output
+- **F-028**: Provide comprehensive documentation and examples
 
 ### 3.2 Non-Functional Requirements
 
 #### 3.2.1 Performance
-- **NF-001**: Generate dual-phase attestations within reasonable time limits for target environment
-- **NF-002**: Support up to 256KB response data from Wise web interface (increased for transaction lists)
-- **NF-003**: Handle concurrent dual-phase attestation requests
-- **NF-004**: Optimize single MPC-TLS session for dual-phase operations
+- **NF-001**: Generate transaction attestations within reasonable time limits for target environment
+- **NF-002**: Support up to 64KB response data from Wise transaction endpoint
+- **NF-003**: Handle concurrent transaction attestation requests
+- **NF-004**: Optimize MPC-TLS session for transaction details
 - **NF-005**: Memory usage optimized for deployment environment constraints
 - **NF-006**: Binary size optimized for efficient distribution across platforms
 - **NF-007**: CPU usage optimized for battery conservation in mobile deployments
@@ -182,7 +171,7 @@ A ZKP2P payment verification system leveraging **dual-phase TLSNotary MPC-TLS pr
 - **NF-010**: Protection against man-in-the-middle attacks
 
 #### 3.2.4 Compatibility
-- **NF-011**: Compatible with ZKP2P provider specification (enhanced for dual-phase)
+- **NF-011**: Compatible with ZKP2P provider specification 
 - **NF-012**: Support for multiple Wise account currencies
 - **NF-013**: Backward compatibility with existing test fixtures
 - **NF-014**: Cross-platform binary compatibility across target platforms
@@ -190,16 +179,24 @@ A ZKP2P payment verification system leveraging **dual-phase TLSNotary MPC-TLS pr
 
 ## 4. Technical Architecture
 
-### 4.1 TLSNotary Dual-Phase System Components
+### 4.1 TLSNotary System Components
 
-#### 4.1.1 Prover Component (`attestation/prove.rs`)
-- **Role**: Initiates dual-phase TLS 1.2 connection with Wise.com while collaborating with Notary via MPC
-- **Phase 1**: Requests transaction list to verify ownership of target transaction
-- **Phase 2**: Requests specific transaction details for payment attestation
-- **MPC-TLS**: Secret-shares TLS session keys with Notary across both phases without revealing plaintext data
+#### 4.1.1 Prover Component (Modular Architecture)
+
+**Core Modules (`src/`):**
+- **`attestation/`**: Attestation operations - transcript analysis, commitment creation, notarization
+- **`http/`**: HTTP request building with header management and sensitive data redaction
+- **`notary/`**: Notary server configuration, client setup, and notarization requests
+- **`providers/wise.rs`**: Wise-specific dual-phase logic and credential management
+- **`tls/`**: MPC-TLS session management, crypto provider setup, prover configuration
+
+**Orchestration (`attestation/prove.rs`):**
+- **Role**: Coordinates modules to execute TLS 1.2 connection with Wise.com
+- **Transaction Attestation**: Directly attests specific transaction details for payment verification
+- **MPC-TLS**: Manages secret-shared TLS session keys with Notary via module coordination
 - **Transparency**: Wise.com sees only standard browser traffic (Notary is invisible to server)
-- **Authentication**: Handles Cookie and X-Access-Token headers for web session access in both phases
-- **Output**: Generates combined cryptographic attestations signed by Notary server covering both phases
+- **Authentication**: Delegates credential handling to providers module
+- **Output**: Generates cryptographic attestations signed by Notary server
 
 #### 4.1.2 Notary Server (External)
 - **Role**: Trusted third-party that participates in MPC-TLS without seeing data content
@@ -209,19 +206,17 @@ A ZKP2P payment verification system leveraging **dual-phase TLSNotary MPC-TLS pr
 - **Trust Model**: Verifiers can require multiple Notary signatures to prevent collusion
 
 #### 4.1.3 Presenter Component (`attestation/present.rs`)
-- **Dual-Phase Selective Disclosure**: Creates privacy-preserving presentations from dual-phase attestations
-- **Phase 1 Disclosure**: Reveals transaction ownership proof while hiding other transactions
-- **Phase 2 Disclosure**: Reveals essential payment verification fields
+- **Selective Disclosure**: Creates privacy-preserving presentations from transaction attestations
+- **Payment Disclosure**: Reveals essential payment verification fields
 - **Zero-Knowledge**: Can prove properties of data without revealing exact values
 - **Field Control**: Reveals only specified Wise transaction fields (amount, currency, date, etc.)
 - **Privacy Protection**: Hides sensitive authentication headers from all parties
-- **ZKP2P Integration**: Formats dual-phase data according to ZKP2P provider specifications
+- **ZKP2P Integration**: Formats transaction data according to ZKP2P provider specifications
 
 #### 4.1.4 Verifier Component (`attestation/verify.rs`)
-- **Trustless Dual-Phase Verification**: Validates cryptographic proofs without trusting the Prover
-- **Ownership Validation**: Confirms transaction exists in user's authenticated transaction list
+- **Trustless Verification**: Validates cryptographic proofs without trusting the Prover
 - **Payment Validation**: Verifies specific payment details match ZKP2P requirements
-- **Attestation Validation**: Confirms Notary's cryptographic signature on dual-phase data commitments
+- **Attestation Validation**: Confirms Notary's cryptographic signature on transaction data commitments
 - **Presentation Integrity**: Verifies selective disclosure hasn't compromised proof validity
 - **Certificate Validation**: Uses production TLS certificate chains for Wise.com verification
 
@@ -249,6 +244,13 @@ A ZKP2P payment verification system leveraging **dual-phase TLSNotary MPC-TLS pr
 │  │   zkp2p-tlsn-prover prove --config config.json               ││
 │  │   zkp2p-tlsn-prover present --attestation att.tlsn           ││
 │  │   zkp2p-tlsn-prover verify --presentation pres.tlsn          ││
+│  ├─────────────────────────────────────────────────────────────────┤│
+│  │                 Modular Architecture                           ││
+│  │   • http/: Request building and header management             ││
+│  │   • notary/: Notary server configuration and connection       ││
+│  │   • providers/: Provider-specific implementations (Wise)      ││
+│  │   • tls/: MPC-TLS session and crypto management              ││
+│  │   • attestation/: Commitment and notarization operations      ││
 │  ├─────────────────────────────────────────────────────────────────┤│
 │  │                   Dual-Phase TLS Prover                       ││
 │  │   Phase 1: Transaction ownership verification                 ││

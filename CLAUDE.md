@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Rust implementation of ZKP2P payment verification using TLSNotary, built on the TLSNotary protocol developed by the Ethereum Foundation's Privacy and Scaling Explorations (PSE) team. **The primary goal is to create a production-ready binary prover that generates cryptographic proofs of payment completion through Wise.com. This binary will be distributed to the [ZKP2P React Native SDK](https://github.com/zkp2p/zkp2p-react-native-sdk) repository for mobile integration.**
 
-**Key Innovation**: This implementation uses a **dual-phase attestation architecture** that first proves transaction ownership through the user's transaction list, then attests specific payment details. This approach prevents transaction ID enumeration attacks while maintaining complete privacy of authentication credentials and sensitive financial data.
+**Key Innovation**: This implementation uses **direct transaction detail attestation** that proves specific payment completion through cryptographic verification. This approach maintains complete privacy of authentication credentials and sensitive financial data while providing verifiable payment proofs for ZKP2P settlement.
 
 ## Binary Distribution Strategy
 
@@ -95,18 +95,15 @@ The codebase follows a modular design pattern with clear separation of concerns:
 
 #### Example Implementations (`attestation/`)
 
-- **Prover** (`prove.rs`): Orchestrates dual-phase MPC-TLS protocol:
-  - **Phase 1**: Verifies transaction ownership via transaction list
-  - **Phase 2**: Attests specific payment details
+- **Prover** (`prove.rs`): Orchestrates MPC-TLS protocol:
+  - **Transaction Attestation**: Directly attests specific payment details
   - Coordinates modules for end-to-end attestation flow
   
 - **Presenter** (`present.rs`): Creates selective disclosure presentations:
-  - **Transaction List Disclosure**: Reveals only target transaction ID
   - **Payment Details Disclosure**: Reveals essential ZKP2P fields
   - **Privacy Preservation**: Hides sensitive credentials and data
   
-- **Verifier** (`verify.rs`): Validates dual-phase presentations:
-  - **Ownership Verification**: Confirms transaction authenticity
+- **Verifier** (`verify.rs`): Validates transaction presentations:
   - **Payment Verification**: Validates payment details
   - **Cryptographic Integrity**: Ensures attestation validity
 
@@ -256,7 +253,7 @@ export NOTARY_PORT="7047"
 export NOTARY_TLS="true"
 
 # 1. Extract credentials manually from browser (see README.md for detailed steps)
-# 2. Generate payment proof with CLI arguments
+# 2. Generate payment proof with CLI arguments (direct transaction detail attestation)
 cargo run --release --example attestation_prove -- wise-transaction \
   --wise-profile-id "your_profile_id" \
   --wise-transaction-id "your_payment_id" \
@@ -469,11 +466,10 @@ cargo build --release  # Host platform
 
 ## Implementation Status
 
-**✅ PHASE 1 COMPLETED - Dual-Phase TLSNotary Core**
-- Dual-phase MPC-TLS implementation
-- Transaction ownership verification + payment details attestation
-- Enhanced security against enumeration attacks
-- Complete privacy preservation
+**✅ PHASE 1 COMPLETED - Single-Phase TLSNotary Core**
+- Direct transaction detail MPC-TLS implementation
+- Payment details attestation with privacy preservation
+- Complete privacy preservation of authentication credentials
 
 **🔄 PHASE 2 IN PROGRESS - Production Binary Development**
 - Binary CLI interface implementation
@@ -492,11 +488,11 @@ cargo build --release  # Host platform
 - ✅ `.env.example`: Complete configuration template
 - ✅ `.env.local`: Local testing with Wise + local notary
 - ✅ `src/lib.rs`: Enhanced data limits and utility functions
-- ✅ `attestation/prove.rs`: Dual-phase MPC-TLS implementation
-- ✅ `attestation/present.rs`: Dual-request selective disclosure
-- ✅ `attestation/verify.rs`: Enhanced dual-phase verification
-- ✅ `CLAUDE.md`: Updated with manual credential extraction focus
-- ✅ `README.md`: Updated with manual credential extraction instructions
+- ✅ `attestation/prove.rs`: Single-phase MPC-TLS implementation
+- ✅ `attestation/present.rs`: Transaction detail selective disclosure
+- ✅ `attestation/verify.rs`: Single-phase transaction verification
+- ✅ `CLAUDE.md`: Updated for single-phase approach
+- ✅ `README.md`: Updated for single-phase approach
 - ✅ `doc/PRD.md`: Updated with production binary requirements
 
 **Next Steps for Binary Development**:
