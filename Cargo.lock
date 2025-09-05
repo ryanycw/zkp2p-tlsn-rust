@@ -4458,6 +4458,7 @@ dependencies = [
  "hyper-util",
  "k256",
  "notary-client",
+ "regex",
  "serde",
  "serde_json",
  "spansy",
