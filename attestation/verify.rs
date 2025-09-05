@@ -2,34 +2,24 @@ use std::time::Duration;
 
 use clap::Parser;
 
-use tls_core::verify::WebPkiVerifier;
-use tls_server_fixture::CA_CERT_DER;
 use tlsn_core::{
     CryptoProvider,
     presentation::{Presentation, PresentationOutput},
     signing::VerifyingKey,
 };
-use zkp2p_tlsn_rust::ExampleType;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-struct Args {
-    /// What data to notarize.
-    #[clap(default_value_t, value_enum)]
-    example_type: ExampleType,
-}
+use zkp2p_tlsn_rust::domain::ProviderArgs;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = Args::parse();
+    let args = ProviderArgs::parse();
 
-    verify_presentation(&args.example_type).await
+    verify_presentation(&args.provider).await
 }
 
-async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn std::error::Error>> {
-    let presentation_path = zkp2p_tlsn_rust::get_file_path(example_type, "presentation");
+async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let presentation_path = zkp2p_tlsn_rust::get_file_path(provider, "presentation");
 
-    println!("🔍 Verifying {:?} presentation...", example_type);
+    println!("🔍 Verifying Wise transaction presentation...");
     println!("   Reading presentation from: {}", presentation_path);
 
     // Read the presentation from disk.
@@ -41,26 +31,8 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
             )
         })?)?;
 
-    // Configure crypto provider based on example type
-    let crypto_provider = match example_type {
-        ExampleType::WiseTransaction => {
-            println!("🔒 Using production TLS verification for Wise.com");
-            // Use default crypto provider for production TLS verification of Wise.com
-            CryptoProvider::default()
-        }
-        _ => {
-            println!("🧪 Using test fixture crypto provider for local testing");
-            // Use test fixture crypto provider for local testing
-            let mut root_store = tls_core::anchors::RootCertStore::empty();
-            root_store
-                .add(&tls_core::key::Certificate(CA_CERT_DER.to_vec()))
-                .unwrap();
-            CryptoProvider {
-                cert: WebPkiVerifier::new(root_store, None),
-                ..Default::default()
-            }
-        }
-    };
+    // Configure crypto provider for Wise.com production TLS verification
+    let crypto_provider = CryptoProvider::default();
 
     let VerifyingKey {
         alg,
@@ -101,154 +73,110 @@ async fn verify_presentation(example_type: &ExampleType) -> Result<(), Box<dyn s
     println!("✅ Cryptographic verification successful!");
     println!();
 
-    match example_type {
-        ExampleType::WiseTransaction => {
-            println!(
-                "============================================================================"
-            );
-            println!("🎉 ZKP2P DUAL-PHASE PAYMENT VERIFICATION SUCCESSFUL");
-            println!(
-                "============================================================================"
-            );
-            println!();
-            println!("🔒 Verified Connection Details:");
-            println!("   Server: {} (Wise.com payment platform)", server_name);
-            println!("   Session Time: {}", time);
-            println!("   Protocol: TLS 1.2 with MPC-TLS notarization");
-            println!();
+    println!("============================================================================");
+    println!("🎉 ZKP2P PAYMENT VERIFICATION SUCCESSFUL");
+    println!("============================================================================");
+    println!();
+    println!("🔒 Verified Connection Details:");
+    println!("   Server: {} (Wise.com payment platform)", server_name);
+    println!("   Session Time: {}", time);
+    println!("   Protocol: TLS 1.2 with MPC-TLS notarization");
+    println!();
 
-            // Analyze the dual-phase transcript
-            let sent_lines: Vec<&str> = sent.lines().collect();
-            let recv_lines: Vec<&str> = recv.lines().collect();
+    // Analyze the transaction transcript
+    let sent_lines: Vec<&str> = sent.lines().collect();
+    let recv_lines: Vec<&str> = recv.lines().collect();
 
-            // Look for dual-phase requests
-            let mut phase1_detected = false;
-            let mut phase2_detected = false;
+    // Look for transaction details request
+    let mut transaction_request_detected = false;
 
-            for line in &sent_lines {
-                if line.contains("/all-transactions?direction=OUTGOING") {
-                    phase1_detected = true;
-                    println!("🔍 Phase 1 Verified: Transaction ownership request");
-                    println!("   Request: GET {}", line.trim());
-                }
-                if line.contains("/gateway/v3/profiles/") && line.contains("/transfers/") {
-                    phase2_detected = true;
-                    println!("🔍 Phase 2 Verified: Transaction details request");
-                    println!("   Request: GET {}", line.trim());
-                }
-            }
+    for line in &sent_lines {
+        if line.contains("/gateway/v3/profiles/") && line.contains("/transfers/") {
+            transaction_request_detected = true;
+            println!("🔍 Transaction Request Verified: Transaction details request");
+            println!("   Request: GET {}", line.trim());
+        }
+    }
 
-            if phase1_detected && phase2_detected {
-                println!("✅ Dual-phase verification confirmed: Both ownership and details proven");
-            } else {
-                println!("⚠️  Warning: Expected dual-phase requests not detected in transcript");
-            }
+    if transaction_request_detected {
+        println!("✅ Transaction verification confirmed: Payment details proven");
+    } else {
+        println!("⚠️  Warning: Expected transaction request not detected in transcript");
+    }
 
-            println!();
-            println!("📊 ZKP2P Payment Verification Results:");
+    println!();
+    println!("📊 ZKP2P Payment Verification Results:");
 
-            // Extract revealed payment data from the responses
-            if recv_lines.len() > 0 {
-                // Look for JSON responses and extract payment details
-                let full_response = recv.clone();
+    // Extract revealed payment data from the responses using regex patterns
+    if recv_lines.len() > 0 {
+        let full_response = recv.clone();
+        println!("   📋 Analyzing revealed transaction data...");
 
-                // Try to find payment details in the response
-                if let Some(start) = full_response.find("{\"resource\"") {
-                    if let Some(end) = full_response[start..].find("}") {
-                        let json_str = &full_response[start..start + end + 1];
-                        if let Ok(payment_json) =
-                            serde_json::from_str::<serde_json::Value>(json_str)
-                        {
-                            if let Some(resource) = payment_json.get("resource") {
-                                if let Some(id) = resource.get("id") {
-                                    println!(
-                                        "   ✓ Payment ID: {}",
-                                        id.as_str().unwrap_or("[HIDDEN]")
-                                    );
-                                }
-                            }
-                            if let Some(amount) = payment_json.get("primaryAmount") {
-                                println!(
-                                    "   ✓ Payment Amount: {}",
-                                    amount.as_str().unwrap_or("[HIDDEN]")
-                                );
-                            }
-                            if let Some(currency) = payment_json.get("currency") {
-                                println!(
-                                    "   ✓ Currency: {}",
-                                    currency.as_str().unwrap_or("[HIDDEN]")
-                                );
-                            }
-                            if let Some(status) = payment_json.get("status") {
-                                println!(
-                                    "   ✓ Payment Status: {}",
-                                    status.as_str().unwrap_or("[HIDDEN]")
-                                );
-                            }
-                            if let Some(date) = payment_json.get("visibleOn") {
-                                println!(
-                                    "   ✓ Payment Date: {}",
-                                    date.as_str().unwrap_or("[HIDDEN]")
-                                );
-                            }
-                        }
+        // Use regex patterns to extract the specifically revealed ZKP2P fields
+        // These should match the patterns used in present.rs
+        let field_patterns = [
+            (r#""id":([0-9]+)"#, "Payment ID"),
+            (r#""state":"([^"]+)""#, "Payment State"),
+            (
+                r#""state":"OUTGOING_PAYMENT_SENT","date":([0-9]+)"#,
+                "Payment Timestamp",
+            ),
+            (r#""targetAmount":([0-9\.]+)"#, "Target Amount"),
+            (r#""targetCurrency":"([^"]+)""#, "Target Currency"),
+            (r#""targetRecipientId":([0-9]+)"#, "Target Recipient ID"),
+        ];
+
+        let mut verified_fields = 0;
+        for (pattern, field_name) in field_patterns.iter() {
+            if let Ok(regex) = regex::Regex::new(pattern) {
+                if let Some(captures) = regex.captures(&full_response) {
+                    if let Some(value) = captures.get(1) {
+                        println!("   ✓ {}: {}", field_name, value.as_str());
+                        verified_fields += 1;
                     }
                 }
             }
-
-            println!();
-            println!("🔐 Privacy Protection Verified:");
-            println!("   ✓ Session credentials (Cookie, X-Access-Token): HIDDEN (shown as X)");
-            println!("   ✓ Personal account information: HIDDEN");
-            println!("   ✓ Other transactions in list: HIDDEN");
-            println!("   ✓ Only essential payment verification data: REVEALED");
-
-            println!();
-            println!("🔍 Full Transcript Analysis:");
-            println!("   Note: 'X' represents data intentionally hidden by selective disclosure");
-            println!();
-            println!("Data sent to {}:", server_name);
-            println!("{}", sent);
-            println!();
-            println!("Data received from {}:", server_name);
-            println!("{}", recv);
-
-            println!();
-            println!(
-                "============================================================================"
-            );
-            println!("🎉 ZKP2P VERIFICATION COMPLETE - PAYMENT PROOF VALIDATED");
-            println!(
-                "============================================================================"
-            );
         }
-        _ => {
-            println!("-------------------------------------------------------------------");
+
+        if verified_fields > 0 {
             println!(
-                "Successfully verified that the data below came from a session with {} at {}.",
-                server_name, time
+                "   ✅ Successfully verified {} ZKP2P payment fields",
+                verified_fields
             );
-            println!("Note that the data which the Prover chose not to disclose are shown as X.\n");
-            println!("Data sent:\n");
-            println!("{}\n", sent);
-            println!("Data received:\n");
-            println!("{}\n", recv);
-            println!("-------------------------------------------------------------------");
+        } else {
+            println!("   ⚠️  Warning: No ZKP2P fields found in revealed data");
+            println!("   📝 Raw revealed response: {}", full_response);
         }
     }
 
     println!();
+    println!("🔐 Privacy Protection Verified:");
+    println!("   ✓ Session credentials (Cookie, X-Access-Token): HIDDEN (shown as X)");
+    println!("   ✓ Personal account information: HIDDEN");
+    println!("   ✓ Only essential payment verification data: REVEALED");
+
+    println!();
+    println!("🔍 Full Transcript Analysis:");
+    println!("   Note: 'X' represents data intentionally hidden by selective disclosure");
+    println!();
+    println!("Data sent to {}:", server_name);
+    println!("{}", sent);
+    println!();
+    println!("Data received from {}:", server_name);
+    println!("{}", recv);
+
+    println!();
+    println!("============================================================================");
+    println!("🎉 ZKP2P VERIFICATION COMPLETE - PAYMENT PROOF VALIDATED");
+    println!("============================================================================");
+
+    println!();
     println!("✅ Verification process completed successfully!");
 
-    match example_type {
-        ExampleType::WiseTransaction => {
-            println!();
-            println!("🎯 ZKP2P Integration Ready:");
-            println!("   This verified proof can now be submitted to ZKP2P smart contracts");
-            println!("   for automated crypto asset release upon payment confirmation.");
-        }
-        _ => {}
-    }
+    println!();
+    println!("🎯 ZKP2P Integration Ready:");
+    println!("   This verified proof can now be submitted to ZKP2P smart contracts");
+    println!("   for automated crypto asset release upon payment confirmation.");
 
     Ok(())
 }

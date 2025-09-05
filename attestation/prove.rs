@@ -44,7 +44,7 @@ async fn notarize(
     app_config: &zkp2p_tlsn_rust::config::AppConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-    tracing::info!("🚀 Starting ZKP2P payment verification via TLSNotary...");
+    println!("🚀 Starting ZKP2P payment verification via TLSNotary...");
     // Configure notary connection
     let notary_client = NotaryClient::builder()
         .host(&app_config.notary.server.host)
@@ -73,7 +73,7 @@ async fn notarize(
         .ok()
         .ok_or("Failed to build prover config")?;
     // Initialize MPC-TLS Prover with Notary collaboration
-    tracing::info!("🤝 Setting up MPC-TLS collaboration with Notary...");
+    println!("🤝 Setting up MPC-TLS collaboration with Notary...");
     let prover = tlsn_prover::Prover::new(prover_config)
         .setup(accepted.io.compat())
         .await?;
@@ -84,10 +84,10 @@ async fn notarize(
     // - Prover and Notary secret-share TLS session keys via MPC
     // - Target server sees standard TLS 1.2 connection (Notary is transparent)
     // - All data encryption/decryption occurs through MPC with Notary
-    tracing::info!("🔐 Establishing MPC-TLS connection (Prover ↔ Notary ↔ Server)...");
+    println!("🔐 Establishing MPC-TLS connection (Prover ↔ Notary ↔ Server)...");
     let (mpc_tls_connection, prover_fut) = prover.connect(client_socket.compat()).await?;
     let mpc_tls_connection = TokioIo::new(mpc_tls_connection.compat());
-    tracing::info!("✅ MPC-TLS connection established - Notary transparent to server");
+    println!("✅ MPC-TLS connection established - Notary transparent to server");
     // Spawn the prover task to be run concurrently in the background
     let prover_task = tokio::spawn(prover_fut);
     // Attach the hyper HTTP client to the connection
@@ -95,7 +95,7 @@ async fn notarize(
         hyper::client::conn::http1::handshake(mpc_tls_connection).await?;
     // Spawn the HTTP task to be run concurrently in the background
     tokio::spawn(connection);
-    tracing::info!("🔄 Executing transaction request...");
+    println!("🔄 Executing transaction request...");
     // Execute transaction request using unified function
     providers::execute_transaction_request(
         &mut request_sender,
@@ -104,19 +104,28 @@ async fn notarize(
         &app_config.user_agent,
     )
     .await?;
-    tracing::info!("🏁 Transaction request executed - Completing MPC-TLS session...");
+    println!("🏁 Transaction request executed - Completing MPC-TLS session...");
     let mut prover = prover_task.await??;
     let transcript = prover.transcript();
-    tracing::info!("🔄 Committing to transcript...");
+    println!("🔄 Committing to transcript...");
     let mut builder = TranscriptCommitConfig::builder(transcript);
     // Commit to the entire sent data (the request)
     builder.commit_sent(&(0..prover.transcript().sent().len()))?;
     // For chunked responses, commit to the entire received data
     // The actual parsing will be done during presentation
     builder.commit_recv(&(0..prover.transcript().received().len()))?;
+
+    println!(
+        "Transcript Sent Length: {}",
+        prover.transcript().sent().len()
+    );
+    println!(
+        "Transcript Received Length: {}",
+        prover.transcript().received().len()
+    );
     let transcript_commit = builder.build()?;
     // Build an attestation request.
-    tracing::info!("🔄 Building attestation request...");
+    println!("🔄 Building attestation request...");
     let mut builder = RequestConfig::builder();
     builder.transcript_commit(transcript_commit);
     let request_config = builder.build()?;
@@ -125,7 +134,6 @@ async fn notarize(
     let (attestation, secrets) = prover.notarize(&request_config).await?;
 
     println!("Notarization complete!");
-
     transcript::save_attestation_files(&provider_config.provider_type, &attestation, &secrets)
         .await?;
 

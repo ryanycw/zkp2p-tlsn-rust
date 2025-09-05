@@ -16,7 +16,7 @@ pub async fn request_notarization(
         .await
         .expect("❌ Failed to connect to Notary server. Ensure it's running and accessible.");
 
-    tracing::info!(
+    println!(
         "✅ Notary connection established (session: {})",
         accepted.id
     );
