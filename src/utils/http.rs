@@ -1,3 +1,35 @@
+pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize, String)> {
+    let (headers, body) = parse_response_data(response_data);
+    let body_start = headers.len();
+    let mut field_ranges = Vec::new();
+
+    let field_patterns = [
+        (r#""id":([0-9]+)"#, "paymentId"),
+        (r#""state":"([^"]+)""#, "state"),
+        (
+            r#""state":"OUTGOING_PAYMENT_SENT","date":([0-9]+)"#,
+            "timestamp",
+        ),
+        (r#""targetAmount":([0-9\.]+)"#, "targetAmount"),
+        (r#""targetCurrency":"([^"]+)""#, "targetCurrency"),
+        (r#""targetRecipientId":([0-9]+)"#, "targetRecipientId"),
+    ];
+
+    for (pattern, field_name) in field_patterns.iter() {
+        if let Ok(regex) = regex::Regex::new(pattern) {
+            if let Some(captures) = regex.captures(&body) {
+                if let Some(full_match) = captures.get(0) {
+                    let start = body_start + full_match.start();
+                    let end = body_start + full_match.end();
+                    field_ranges.push((start, end, field_name.to_string()));
+                }
+            }
+        }
+    }
+
+    field_ranges
+}
+
 pub fn parse_response_data(response_data: &[u8]) -> (String, String) {
     let response_str = String::from_utf8_lossy(response_data);
 
