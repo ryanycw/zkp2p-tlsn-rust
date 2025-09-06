@@ -9,7 +9,7 @@ use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 use zkp2p_tlsn_rust::{
     config::AppConfig,
     domain::{AuthArgs, ProviderConfig, ProviderType, server},
-    utils::{notary, providers, transcript},
+    utils::{http, notary, providers, transcript},
 };
 
 #[tokio::main]
@@ -80,10 +80,6 @@ async fn notarize(
     // Establish TCP connection to target server
     let client_socket =
         tokio::net::TcpStream::connect((server_config.host.as_str(), server_config.port)).await?;
-    // Establish MPC-TLS connection with target server
-    // - Prover and Notary secret-share TLS session keys via MPC
-    // - Target server sees standard TLS 1.2 connection (Notary is transparent)
-    // - All data encryption/decryption occurs through MPC with Notary
     println!("🔐 Establishing MPC-TLS connection (Prover ↔ Notary ↔ Server)...");
     let (mpc_tls_connection, prover_fut) = prover.connect(client_socket.compat()).await?;
     let mpc_tls_connection = TokioIo::new(mpc_tls_connection.compat());
@@ -111,18 +107,15 @@ async fn notarize(
     let mut builder = TranscriptCommitConfig::builder(transcript);
     // Commit to the entire sent data (the request)
     builder.commit_sent(&(0..prover.transcript().sent().len()))?;
-    // For chunked responses, commit to the entire received data
-    // The actual parsing will be done during presentation
-    builder.commit_recv(&(0..prover.transcript().received().len()))?;
+    // Parse response data to find specific payment field ranges
+    let recv_data = prover.transcript().received();
+    let field_ranges = http::find_field_ranges(recv_data);
 
-    println!(
-        "Transcript Sent Length: {}",
-        prover.transcript().sent().len()
-    );
-    println!(
-        "Transcript Received Length: {}",
-        prover.transcript().received().len()
-    );
+    println!("🔍 Found {} payment fields to commit:", field_ranges.len());
+    for (start, end, field_name) in &field_ranges {
+        println!("   - {}: range {}..{}", field_name, start, end);
+        builder.commit_recv(&(*start..*end))?;
+    }
     let transcript_commit = builder.build()?;
     // Build an attestation request.
     println!("🔄 Building attestation request...");

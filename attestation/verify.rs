@@ -70,9 +70,6 @@ async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::E
     let sent = String::from_utf8_lossy(partial_transcript.sent_unsafe());
     let recv = String::from_utf8_lossy(partial_transcript.received_unsafe());
 
-    println!("✅ Cryptographic verification successful!");
-    println!();
-
     println!("============================================================================");
     println!("🎉 ZKP2P PAYMENT VERIFICATION SUCCESSFUL");
     println!("============================================================================");
@@ -149,13 +146,6 @@ async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::E
         }
     }
 
-    println!();
-    println!("🔐 Privacy Protection Verified:");
-    println!("   ✓ Session credentials (Cookie, X-Access-Token): HIDDEN (shown as X)");
-    println!("   ✓ Personal account information: HIDDEN");
-    println!("   ✓ Only essential payment verification data: REVEALED");
-
-    println!();
     println!("🔍 Full Transcript Analysis:");
     println!("   Note: 'X' represents data intentionally hidden by selective disclosure");
     println!();

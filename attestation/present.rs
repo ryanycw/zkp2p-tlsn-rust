@@ -1,7 +1,7 @@
 use clap::Parser;
 
 use tlsn_core::{CryptoProvider, Secrets, attestation::Attestation, presentation::Presentation};
-use zkp2p_tlsn_rust::{domain::ProviderArgs, utils::parse_response_data};
+use zkp2p_tlsn_rust::{domain::ProviderArgs, utils::http::find_field_ranges};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,73 +25,19 @@ async fn create_presentation(provider: &str) -> Result<(), Box<dyn std::error::E
     println!("🔧 Creating selective disclosure presentation for chunked response data...");
     let mut builder = secrets.transcript_proof_builder();
 
-    // Parse HTTP headers from response
+    // Parse HTTP response to find payment field ranges
     println!("📊 Processing response for ZKP2P verification...");
     let sent_data = secrets.transcript().sent();
     let recv_data = secrets.transcript().received();
     builder.reveal_sent(&(0..sent_data.len()))?;
-    // builder.reveal_recv(&(0..recv_data.len()))?;
-    let (headers, body) = parse_response_data(recv_data);
-    let body_start = headers.len();
 
-    let field_patterns = [
-        (r#""id":([0-9]+)"#, "paymentId", "payment ID"),
-        (r#""state":"([^"]+)""#, "state", "payment state"),
-        (
-            r#""state":"OUTGOING_PAYMENT_SENT","date":([0-9]+)"#,
-            "timestamp",
-            "payment timestamp",
-        ),
-        (
-            r#""targetAmount":([0-9\.]+)"#,
-            "targetAmount",
-            "target amount",
-        ),
-        (
-            r#""targetCurrency":"([^"]+)""#,
-            "targetCurrency",
-            "target currency",
-        ),
-        (
-            r#""targetRecipientId":([0-9]+)"#,
-            "targetRecipientId",
-            "target recipient ID",
-        ),
-    ];
+    let field_ranges = find_field_ranges(recv_data);
 
-    for (pattern, field_name, description) in field_patterns.iter() {
-        match regex::Regex::new(pattern) {
-            Ok(regex) => {
-                if let Some(captures) = regex.captures(&body) {
-                    if let Some(full_match) = captures.get(0) {
-                        // Reveal the entire field pattern (key and value)
-                        let start = body_start + full_match.start();
-                        let end = body_start + full_match.end();
-                        println!(
-                            "     Found {}: '{}' at chunked body position {}..{}",
-                            field_name,
-                            full_match.as_str(),
-                            full_match.start(),
-                            full_match.end()
-                        );
-                        println!(
-                            "     Revealing recv data at absolute position {}..{}",
-                            start, end
-                        );
-                        builder.reveal_recv(&(start..end))?;
-                        println!("     ✅ Revealed: {} for {}", field_name, description);
-                    }
-                } else {
-                    println!(
-                        "     ⚠️  Pattern not found: {} for {}",
-                        field_name, description
-                    );
-                }
-            }
-            Err(e) => {
-                println!("     ❌ Regex error for {}: {}", field_name, e);
-            }
-        }
+    println!("🔍 Found {} payment fields to reveal:", field_ranges.len());
+    for (start, end, field_name) in &field_ranges {
+        println!("     Revealing {}: range {}..{}", field_name, start, end);
+        builder.reveal_recv(&(*start..*end))?;
+        println!("     ✅ Revealed: {}", field_name);
     }
 
     println!("   ✅ ZKP2P essential fields revealed, sensitive data remains private");
