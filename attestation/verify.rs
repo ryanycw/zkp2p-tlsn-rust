@@ -19,7 +19,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::Error>> {
     let presentation_path = zkp2p_tlsn_rust::get_file_path(provider, "presentation");
 
-    println!("🔍 Verifying Wise transaction presentation...");
+    println!("🔍 Verifying transaction presentation...");
     println!("   Reading presentation from: {}", presentation_path);
 
     // Read the presentation from disk.
@@ -30,9 +30,6 @@ async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::E
                 presentation_path, e
             )
         })?)?;
-
-    // Configure crypto provider for Wise.com production TLS verification
-    let crypto_provider = CryptoProvider::default();
 
     let VerifyingKey {
         alg,
@@ -57,7 +54,7 @@ async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::E
         // extensions, // Optionally, verify any custom extensions from prover/notary.
         ..
     } = presentation
-        .verify(&crypto_provider)
+        .verify(&CryptoProvider::default())
         .map_err(|e| format!("Cryptographic verification failed: {}", e))?;
 
     // The time at which the connection was started.
@@ -148,8 +145,9 @@ async fn verify_presentation(provider: &str) -> Result<(), Box<dyn std::error::E
 
     println!("🔍 Full Transcript Analysis:");
     println!("   Note: 'X' represents data intentionally hidden by selective disclosure");
+    println!("   Only the 'host:' header is revealed from the request for privacy");
     println!();
-    println!("Data sent to {}:", server_name);
+    println!("Data sent to {} (only host header revealed):", server_name);
     println!("{}", sent);
     println!();
     println!("Data received from {}:", server_name);

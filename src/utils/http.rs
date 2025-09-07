@@ -30,6 +30,18 @@ pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize, String)> {
     field_ranges
 }
 
+pub fn find_host_header_range(request_data: &[u8]) -> Option<(usize, usize)> {
+    let request_str = String::from_utf8_lossy(request_data);
+    
+    if let Ok(regex) = regex::Regex::new(r"host: [^\r\n]+") {
+        if let Some(host_match) = regex.find(&request_str) {
+            return Some((host_match.start(), host_match.end()));
+        }
+    }
+    
+    None
+}
+
 pub fn parse_response_data(response_data: &[u8]) -> (String, String) {
     let response_str = String::from_utf8_lossy(response_data);
 

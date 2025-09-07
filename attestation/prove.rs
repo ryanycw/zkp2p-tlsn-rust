@@ -105,12 +105,16 @@ async fn notarize(
     let transcript = prover.transcript();
     println!("🔄 Committing to transcript...");
     let mut builder = TranscriptCommitConfig::builder(transcript);
-    // Commit to the entire sent data (the request)
-    builder.commit_sent(&(0..prover.transcript().sent().len()))?;
+
+    // Commit to only the host header in the sent data (the request)
+    let sent_data = prover.transcript().sent();
+    let (start, end) = http::find_host_header_range(sent_data).unwrap();
+    println!("🔍 Found host header at range {}..{}", start, end);
+    builder.commit_sent(&(start..end))?;
+
     // Parse response data to find specific payment field ranges
     let recv_data = prover.transcript().received();
     let field_ranges = http::find_field_ranges(recv_data);
-
     println!("🔍 Found {} payment fields to commit:", field_ranges.len());
     for (start, end, field_name) in &field_ranges {
         println!("   - {}: range {}..{}", field_name, start, end);
