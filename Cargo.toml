@@ -47,9 +47,5 @@ name = "zkp2p-prove"
 path = "attestation/prove.rs"
 
 [[bin]]
-name = "zkp2p-present"
-path = "attestation/present.rs"
-
-[[bin]]
 name = "zkp2p-verify"
 path = "attestation/verify.rs"
