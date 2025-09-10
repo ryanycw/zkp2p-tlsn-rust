@@ -38,9 +38,8 @@ tokio = { version = "1.35", features = [
   "fs",
 ] }
 tokio-util = "0.7.16"
-tracing = "0.1"
-tracing-subscriber = "0.3.2"
 config = "0.15.15"
+anyhow = "1.0.99"
 
 [[bin]]
 name = "zkp2p-prove"
