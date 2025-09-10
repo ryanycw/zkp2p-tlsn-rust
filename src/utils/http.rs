@@ -1,4 +1,4 @@
-pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize, String)> {
+pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize)> {
     let (headers, body) = parse_response_data(response_data);
     let body_start = headers.len();
     let mut field_ranges = Vec::new();
@@ -21,7 +21,8 @@ pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize, String)> {
                 if let Some(full_match) = captures.get(0) {
                     let start = body_start + full_match.start();
                     let end = body_start + full_match.end();
-                    field_ranges.push((start, end, field_name.to_string()));
+                    field_ranges.push((start, end));
+                    println!("     ✅ Found {}: range {}..{}", field_name, start, end);
                 }
             }
         }
@@ -35,6 +36,11 @@ pub fn find_host_header_range(request_data: &[u8]) -> Option<(usize, usize)> {
 
     if let Ok(regex) = regex::Regex::new(r"host: [^\r\n]+") {
         if let Some(host_match) = regex.find(&request_str) {
+            println!(
+                "     ✅ Found host header: range {}..{}",
+                host_match.start(),
+                host_match.end()
+            );
             return Some((host_match.start(), host_match.end()));
         }
     }
