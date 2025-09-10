@@ -1,20 +1,36 @@
 use clap::{Parser, ValueEnum};
+use std::fmt;
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, ValueEnum, PartialEq)]
 pub enum Mode {
     Prove,
     Present,
     ProveToPresent,
 }
 
+#[derive(Debug, Clone, ValueEnum, PartialEq)]
+pub enum Provider {
+    Wise,
+    PayPal,
+}
+
+impl fmt::Display for Provider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Provider::Wise => write!(f, "wise"),
+            Provider::PayPal => write!(f, "paypal"),
+        }
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about = "ZKP2P TLSNotary Prover - Proving and Presenting")]
 pub struct ProveArgs {
     /// Operation mode
-    #[clap(short, long, value_enum)]
+    #[clap(long, value_enum)]
     pub mode: Mode,
-    #[clap(long)]
-    pub provider: String,
+    #[clap(long, value_enum)]
+    pub provider: Provider,
     /// Profile ID
     #[clap(long)]
     pub profile_id: Option<String>,

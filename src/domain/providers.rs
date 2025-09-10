@@ -1,5 +1,7 @@
-use crate::domain::ProviderType;
+use anyhow::Error;
 use clap::Parser;
+
+use crate::domain::Provider;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -10,7 +12,7 @@ pub struct ProviderArgs {
 
 #[derive(Debug, Clone)]
 pub struct ProviderConfig {
-    pub provider_type: ProviderType,
+    pub provider_type: Provider,
     pub profile_id: Option<String>,
     pub transaction_id: String,
     pub cookie: String,
@@ -19,20 +21,20 @@ pub struct ProviderConfig {
 
 impl ProviderConfig {
     pub fn new(
-        provider_type: ProviderType,
+        provider_type: Provider,
         profile_id: Option<String>,
         transaction_id: String,
         cookie: String,
         access_token: String,
     ) -> Self {
         match provider_type {
-            ProviderType::Wise => {
+            Provider::Wise => {
                 println!("🔐 Configuring ZKP2P Wise payment verification:");
                 if let Some(ref pid) = profile_id {
                     println!("   Profile ID: {}", pid);
                 }
             }
-            ProviderType::PayPal => {
+            Provider::PayPal => {
                 println!("🔐 Configuring ZKP2P PayPal payment verification:");
             }
         }
@@ -55,16 +57,18 @@ impl ProviderConfig {
         ]
     }
 
-    pub fn transaction_endpoint(&self) -> Result<String, &'static str> {
+    pub fn transaction_endpoint(&self) -> Result<String, Error> {
         match self.provider_type {
-            ProviderType::Wise => match &self.profile_id {
+            Provider::Wise => match &self.profile_id {
                 Some(profile_id) => Ok(format!(
                     "/gateway/v3/profiles/{}/transfers/{}",
                     profile_id, self.transaction_id
                 )),
-                None => Err("Profile ID is required for Wise transaction endpoint"),
+                None => Err(anyhow::anyhow!(
+                    "Profile ID is required for Wise transaction endpoint"
+                )),
             },
-            ProviderType::PayPal => Ok(format!(
+            Provider::PayPal => Ok(format!(
                 "/myaccount/activities/details/inline/{}",
                 self.transaction_id
             )),

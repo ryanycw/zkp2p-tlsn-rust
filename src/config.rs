@@ -2,7 +2,7 @@ use config::{Config, ConfigError, File};
 use serde::Deserialize;
 use std::env;
 
-use crate::domain::{NotaryConfig, ProviderType, ServerConfig};
+use crate::domain::{NotaryConfig, Provider, ServerConfig};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
@@ -13,12 +13,6 @@ pub struct AppConfig {
     pub wise: ServerConfig,
     pub notary: NotaryConfig,
 }
-
-// println!(
-//     "📋 Requesting notarization with data limits: sent={}KB, recv={}KB",
-//     max_sent / 1024,
-//     max_recv / 1024
-// );
 
 impl AppConfig {
     pub fn new() -> Result<Self, ConfigError> {
@@ -33,15 +27,15 @@ impl AppConfig {
         s.build()?.try_deserialize()
     }
 
-    pub fn server_config(&self, provider_type: ProviderType) -> ServerConfig {
+    pub fn server_config(&self, provider_type: Provider) -> ServerConfig {
         let server_config = match provider_type {
-            ProviderType::PayPal => {
+            Provider::PayPal => {
                 let host = self.paypal.host.clone();
                 let port = self.paypal.port;
 
                 ServerConfig { host, port }
             }
-            ProviderType::Wise => {
+            Provider::Wise => {
                 let host = self.wise.host.clone();
                 let port = self.wise.port;
 
@@ -60,11 +54,11 @@ mod tests {
     #[test]
     fn test_server_config() {
         let app_config = AppConfig::new().unwrap();
-        let server_config = app_config.server_config(ProviderType::Wise);
+        let server_config = app_config.server_config(Provider::Wise);
         assert_eq!(server_config.host, "wise.com");
         assert_eq!(server_config.port, 443);
 
-        let server_config = app_config.server_config(ProviderType::PayPal);
+        let server_config = app_config.server_config(Provider::PayPal);
         assert_eq!(server_config.host, "www.paypal.com");
         assert_eq!(server_config.port, 443);
 
