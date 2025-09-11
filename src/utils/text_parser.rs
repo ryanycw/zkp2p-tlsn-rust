@@ -1,13 +1,16 @@
 use tracing::info;
 
-use crate::{domain::Provider, utils::patterns};
+use crate::{
+    domain::Provider,
+    utils::patterns::{HOST_HEADER_PATTERN, get_field_patterns},
+};
 
 pub fn find_field_ranges(response_data: &[u8], provider: &Provider) -> Vec<(usize, usize)> {
     let (headers, body) = parse_response_data(response_data);
     let body_start = headers.len();
     let mut field_ranges = Vec::new();
 
-    for (pattern, field_name) in patterns::get_field_patterns(provider).iter() {
+    for (pattern, field_name) in get_field_patterns(provider).iter() {
         if let Ok(regex) = regex::Regex::new(pattern) {
             if let Some(captures) = regex.captures(&body) {
                 if let Some(full_match) = captures.get(0) {
@@ -32,7 +35,7 @@ pub fn find_field_ranges(response_data: &[u8], provider: &Provider) -> Vec<(usiz
 pub fn find_host_header_range(request_data: &[u8]) -> Option<(usize, usize)> {
     let request_str = String::from_utf8_lossy(request_data);
 
-    if let Ok(regex) = regex::Regex::new(patterns::HOST_HEADER_PATTERN) {
+    if let Ok(regex) = regex::Regex::new(HOST_HEADER_PATTERN) {
         if let Some(host_match) = regex.find(&request_str) {
             info!(
                 "     ✅ Found host header: range {}..{}",

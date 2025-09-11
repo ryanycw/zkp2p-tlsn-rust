@@ -7,7 +7,7 @@ use crate::domain::Provider;
 #[command(version, about, long_about = None)]
 pub struct ProviderArgs {
     #[clap(long)]
-    pub provider: String,
+    pub provider: Provider,
 }
 
 #[derive(Debug, Clone)]

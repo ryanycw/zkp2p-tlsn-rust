@@ -1,5 +1,5 @@
 use crate::domain::{ProviderConfig, ServerConfig};
-use crate::utils::tls;
+use crate::utils::tls::build_request;
 use anyhow::{Context, Result};
 use hyper::StatusCode;
 
@@ -15,7 +15,7 @@ pub async fn execute_transaction_request(
         .transaction_endpoint()
         .context("Failed to get transaction endpoint")?;
     let headers = provider.auth_headers();
-    let request = tls::build_request(
+    let request = build_request(
         &endpoint,
         &server.host,
         &headers,
