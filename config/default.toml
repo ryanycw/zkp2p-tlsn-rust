@@ -1,6 +1,7 @@
 user_agent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
 max_sent_data = 4096     # 4KB (1 << 12)
 max_recv_data = 16384   # 16KB (1 << 15)
+unauthed_bytes = "X"
 
 [paypal]
 host = "www.paypal.com"

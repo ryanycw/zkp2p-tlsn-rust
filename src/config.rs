@@ -12,6 +12,7 @@ pub struct AppConfig {
     pub paypal: ServerConfig,
     pub wise: ServerConfig,
     pub notary: NotaryConfig,
+    pub unauthed_bytes: String,
 }
 
 impl AppConfig {
