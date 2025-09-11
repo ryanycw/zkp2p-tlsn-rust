@@ -1,6 +1,7 @@
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 use std::env;
+use tracing::debug;
 
 use crate::domain::{NotaryConfig, Provider, ServerConfig};
 
@@ -43,7 +44,7 @@ impl AppConfig {
                 ServerConfig { host, port }
             }
         };
-        println!("< Target server: {} (production HTTPS)", server_config.host);
+        debug!("Target server: {} (port {})", server_config.host, server_config.port);
         server_config
     }
 }

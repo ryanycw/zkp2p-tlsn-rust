@@ -1,6 +1,7 @@
 use anyhow::Error;
 use http_body_util::Empty;
 use hyper::{Request, body::Bytes};
+use tracing::debug;
 
 /// Builds an HTTP request with common headers for TLSNotary attestation
 pub fn build_request(
@@ -10,8 +11,7 @@ pub fn build_request(
     description: &str,
     user_agent: &str,
 ) -> Result<Request<Empty<Bytes>>, Error> {
-    println!("📡 Building request: {}", description);
-    println!("   Endpoint: {}", uri);
+    debug!("Building HTTP request: {} -> {}", description, uri);
 
     // Using "identity" instructs the Server not to use compression for its HTTP response.
     // TLSNotary tooling does not support compression.

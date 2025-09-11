@@ -1,4 +1,5 @@
 use notary_client::{Accepted, NotarizationRequest, NotaryClient};
+use tracing::debug;
 
 /// Requests notarization from the notary server
 pub async fn request_notarization(
@@ -14,12 +15,9 @@ pub async fn request_notarization(
     let accepted = client
         .request_notarization(request)
         .await
-        .expect("❌ Failed to connect to Notary server. Ensure it's running and accessible.");
+        .map_err(|e| format!("Failed to connect to Notary server: {}", e))?;
 
-    println!(
-        "✅ Notary connection established (session: {})",
-        accepted.id
-    );
+    debug!("Notary connection established (session: {})", accepted.id);
 
     Ok(accepted)
 }

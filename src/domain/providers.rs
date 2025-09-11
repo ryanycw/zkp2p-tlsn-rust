@@ -1,5 +1,6 @@
 use anyhow::Error;
 use clap::Parser;
+use tracing::debug;
 
 use crate::domain::Provider;
 
@@ -27,19 +28,10 @@ impl ProviderConfig {
         cookie: String,
         access_token: String,
     ) -> Self {
-        match provider_type {
-            Provider::Wise => {
-                println!("🔐 Configuring ZKP2P Wise payment verification:");
-                if let Some(ref pid) = profile_id {
-                    println!("   Profile ID: {}", pid);
-                }
-            }
-            Provider::PayPal => {
-                println!("🔐 Configuring ZKP2P PayPal payment verification:");
-            }
+        debug!("Configuring {} payment verification for transaction {}", provider_type, transaction_id);
+        if let (Provider::Wise, Some(pid)) = (&provider_type, &profile_id) {
+            debug!("Using Wise profile ID: {}", pid);
         }
-        println!("   Target Payment ID: {}", transaction_id);
-        println!("   Session credentials will remain private in all proofs");
 
         ProviderConfig {
             provider_type,
