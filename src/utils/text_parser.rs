@@ -1,28 +1,26 @@
-pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize)> {
+use tracing::info;
+
+use crate::{domain::Provider, utils::patterns};
+
+pub fn find_field_ranges(response_data: &[u8], provider: &Provider) -> Vec<(usize, usize)> {
     let (headers, body) = parse_response_data(response_data);
     let body_start = headers.len();
     let mut field_ranges = Vec::new();
 
-    let field_patterns = [
-        (r#""id":([0-9]+)"#, "paymentId"),
-        (r#""state":"([^"]+)""#, "state"),
-        (
-            r#""state":"OUTGOING_PAYMENT_SENT","date":([0-9]+)"#,
-            "timestamp",
-        ),
-        (r#""targetAmount":([0-9\.]+)"#, "targetAmount"),
-        (r#""targetCurrency":"([^"]+)""#, "targetCurrency"),
-        (r#""targetRecipientId":([0-9]+)"#, "targetRecipientId"),
-    ];
-
-    for (pattern, field_name) in field_patterns.iter() {
+    for (pattern, field_name) in patterns::get_field_patterns(provider).iter() {
         if let Ok(regex) = regex::Regex::new(pattern) {
             if let Some(captures) = regex.captures(&body) {
                 if let Some(full_match) = captures.get(0) {
                     let start = body_start + full_match.start();
                     let end = body_start + full_match.end();
                     field_ranges.push((start, end));
-                    println!("     ✅ Found {}: range {}..{}", field_name, start, end);
+                    info!(
+                        "     ✅ Found {}: {} (Bytes {}..{})",
+                        field_name,
+                        full_match.as_str(),
+                        start,
+                        end
+                    );
                 }
             }
         }
@@ -34,9 +32,9 @@ pub fn find_field_ranges(response_data: &[u8]) -> Vec<(usize, usize)> {
 pub fn find_host_header_range(request_data: &[u8]) -> Option<(usize, usize)> {
     let request_str = String::from_utf8_lossy(request_data);
 
-    if let Ok(regex) = regex::Regex::new(r"host: [^\r\n]+") {
+    if let Ok(regex) = regex::Regex::new(patterns::HOST_HEADER_PATTERN) {
         if let Some(host_match) = regex.find(&request_str) {
-            println!(
+            info!(
                 "     ✅ Found host header: range {}..{}",
                 host_match.start(),
                 host_match.end()
@@ -60,5 +58,5 @@ pub fn parse_response_data(response_data: &[u8]) -> (String, String) {
     }
 
     // Fallback: return entire response as header if no separator found
-    (response_str.to_string(), String::new())
+    (String::new(), response_str.to_string())
 }
