@@ -11,7 +11,7 @@ use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 
 use zkp2p_tlsn_rust::{
     config, domain,
-    utils::{http, notary, providers, transcript},
+    utils::{file_io, notary, providers, text_parser},
 };
 
 #[tokio::main]
@@ -102,11 +102,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut prover = prover_task.await??;
         let mut builder = TranscriptCommitConfig::builder(prover.transcript());
 
-        let header_range = http::find_host_header_range(prover.transcript().sent()).unwrap();
+        let header_range = text_parser::find_host_header_range(prover.transcript().sent()).unwrap();
         builder.commit_sent(&(header_range.0..header_range.1))?;
         println!("   ✅ Step 8.A: Commit to host header in sent data...");
 
-        let field_ranges = http::find_field_ranges(prover.transcript().received());
+        let field_ranges =
+            text_parser::find_field_ranges(prover.transcript().received(), &args.provider);
         for (start, end) in &field_ranges {
             builder.commit_recv(&(*start..*end))?;
         }
@@ -125,23 +126,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         (attestation, secrets, header_range, field_ranges)
     } else {
         println!("   🔄 Start Prepare Presentation...");
-        let attestation_path = transcript::get_file_path(&args.provider.to_string(), "attestation");
-        let secrets_path = transcript::get_file_path(&args.provider.to_string(), "secrets");
+        let attestation_path = file_io::get_file_path(&args.provider.to_string(), "attestation");
+        let secrets_path = file_io::get_file_path(&args.provider.to_string(), "secrets");
 
         let attestation: Attestation = bincode::deserialize(&std::fs::read(attestation_path)?)?;
         let secrets: Secrets = bincode::deserialize(&std::fs::read(secrets_path)?)?;
         println!("   ✅ Step 1: Read attestation & secrets from disk...");
 
-        let header_range = http::find_host_header_range(secrets.transcript().sent()).unwrap();
-        let field_ranges = http::find_field_ranges(secrets.transcript().received());
+        let header_range =
+            text_parser::find_host_header_range(secrets.transcript().sent()).unwrap();
+        let field_ranges =
+            text_parser::find_field_ranges(secrets.transcript().received(), &args.provider);
         println!("   ✅ Step 2: Parse request and response to select fields to reveal...");
 
         (attestation, secrets, header_range, field_ranges)
     };
 
     if args.mode == domain::Mode::Prove {
-        transcript::save_file(&provider_config.provider_type, "attestation", &attestation).await?;
-        transcript::save_file(&provider_config.provider_type, "secrets", &secrets).await?;
+        file_io::save_file(&provider_config.provider_type, "attestation", &attestation).await?;
+        file_io::save_file(&provider_config.provider_type, "secrets", &secrets).await?;
         println!("   🏁 Prove Complete!");
         return Ok(());
     }
@@ -163,7 +166,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let presentation: Presentation = builder.build()?;
     println!("   ✅ Step 2: Build presentation...");
 
-    transcript::save_file(&args.provider, "presentation", &presentation).await?;
+    file_io::save_file(&args.provider, "presentation", &presentation).await?;
     println!("   ✅ Step 3: Save presentation to disk...");
 
     println!("   🏁 Present Complete!");
