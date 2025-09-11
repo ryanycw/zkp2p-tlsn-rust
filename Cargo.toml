@@ -40,6 +40,10 @@ tokio = { version = "1.35", features = [
 tokio-util = "0.7.16"
 config = "0.15.15"
 anyhow = "1.0.99"
+color-eyre = "0.6.3"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-error = "0.2.0"
 
 [[bin]]
 name = "zkp2p-prove"
