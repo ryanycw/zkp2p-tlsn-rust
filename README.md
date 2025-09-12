@@ -1,126 +1,138 @@
 # zkp2p-tlsn-rust
 
-Rust implementation of TLSNotary Attestation for ZKP2P - Single-phase transaction detail verification
+ZKP2P payment verification using TLSNotary - proves Wise.com transaction completion cryptographically.
+
+## What it does
+
+Generates cryptographic proofs of fiat payments without revealing sensitive credentials or banking details. Uses TLSNotary's MPC-TLS protocol to prove payment completion for ZKP2P settlements.
+
+## Quick start
+
+### 1. Setup
+
+```bash
+# Clone and build
+git clone https://github.com/yourusername/zkp2p-tlsn-rust
+cd zkp2p-tlsn-rust
+cargo build --release
+
+# Copy configuration template  
+cp .env.local .env
+```
+
+### 2. Get your credentials
+
+**Manual extraction required** - Wise uses modern security that prevents automation:
+
+1. Login to [wise.com](https://wise.com) in your browser
+2. Open Developer Tools (F12) → Network tab  
+3. Navigate to any authenticated page
+4. Click any wise.com request and copy from Request Headers:
+   - `Cookie` header value
+   - `X-Access-Token` header value
+5. Get your Profile ID from account settings
+6. Find Transaction ID at wise.com/all-transactions
+
+### 3. Generate proof
+
+```bash
+# Create cryptographic proof
+cargo run --release --bin zkp2p-prove \
+  --mode prove \
+  --provider wise \
+  --profile-id "12345678" \
+  --transaction-id "987654321" \
+  --cookie "session_id=abc123..." \
+  --access-token "eyJhbGciOiJIUzI1NiI..."
+```
+
+### 4. Create presentation
+
+```bash
+# Create selective disclosure (reveals only essential payment fields)
+cargo run --release --bin zkp2p-prove \
+  --mode present \
+  --provider wise
+```
+
+### 5. Verify
+
+```bash
+# Verify the proof (typically done by smart contracts)
+cargo run --release --bin zkp2p-verify
+```
 
 ## Configuration
 
-### Environment Variables
+### Environment variables (.env)
 
-Copy `.env.local` to `.env` and configure the following:
+```bash
+# Notary server (production)
+NOTARY_HOST=notary.pse.dev
+NOTARY_PORT=7047
+NOTARY_TLS=true
 
-#### Wise Server Configuration
+# Wise server  
+WISE_HOST=wise.com
+WISE_PORT=443
+```
 
-- `WISE_HOST`: Wise web interface hostname (default: wise.com)
-- `WISE_PORT`: Wise HTTPS port (default: 443)
+### Local testing setup
 
-#### Notary Server Configuration
+For development with local notary server:
 
-- `NOTARY_HOST`: Notary server hostname
-  - Production: `notary.pse.dev`
-  - Local development: `127.0.0.1`
-- `NOTARY_PORT`: Notary server port (default: 7047)
-- `NOTARY_TLS`: Enable TLS for notary connection
-  - Production: `true`
-  - Local development: `false`
+```bash
+# Terminal 1 - Start local notary
+cd /path/to/tlsn
+cargo run --release --bin notary-server
 
-## Usage Instructions
+# Terminal 2 - Use local notary
+cp .env.local .env
+# Then run prove command as above
+```
 
-### Manual Credential Extraction
+## What gets proven
 
-Due to Wise's modern security measures (Cloudflare Turnstile), credentials must be extracted manually from your browser:
+The proof reveals only essential payment fields:
+- Payment amount and currency
+- Transaction ID  
+- Payment completion status
+- Recipient identifier
+- Payment timestamp
 
-1. **Login to Wise and extract credentials:**
+**Privacy**: Session credentials, account details, and personal information stay completely private.
 
-   - Open your browser and login to [wise.com](https://wise.com)
-   - Open Developer Tools (F12) and go to the **Network** tab
-   - Navigate to any page that requires authentication (like your transaction history)
-   - Look for any network request and click on it
-   - In the **Request Headers** section, copy:
-     - `Cookie` header value
-     - `X-Access-Token` header value (if present)
-   - Find your profile ID from your account settings or API responses
+## CLI Options
 
-2. **Find your transaction ID:**
+```bash
+zkp2p-prove --help           # See all options
+zkp2p-verify --help          # Verification options
+```
 
-   - Go to wise.com/all-transactions?direction=OUTGOING
-   - Find the payment you want to prove
-   - Copy the transaction ID from the transaction details
+### Modes
+- `prove` - Generate attestation 
+- `present` - Create selective disclosure
+- `prove-to-present` - Do both in one step
 
-3. **Generate payment proof:**
+### Providers  
+- `wise` - Wise.com payments
+- `paypal` - PayPal payments  
 
-   ```bash
-   cargo run --release --example attestation_prove -- wise-transaction \
-     --wise-profile-id "your_profile_id" \
-     --wise-transaction-id "your_transaction_id" \
-     --wise-cookie "your_cookie_header" \
-     --wise-access-token "your_access_token"
-   ```
+## Requirements
 
-4. **Create selective presentation:**
+- Rust 1.70+
+- Active Wise account with transaction history
+- Network access to notary server
 
-   ```bash
-   cargo run --release --example attestation_present -- wise-transaction
-   ```
+## Security
 
-5. **Verify the proof:**
+- Zero-knowledge proof generation
+- No credential storage
+- MPC-TLS ensures notary never sees your data
+- Cryptographic guarantees via Ethereum Foundation's TLSNotary protocol
 
-   ```bash
-   cargo run --release --example attestation_verify -- wise-transaction
-   ```
+## Files generated
 
-## Testing Setup
-
-### Local Testing with Real Wise Server + Local Notary
-
-This setup allows you to test against the actual Wise production server while using a local notary server for development. The system generates cryptographic proofs of payment completion through direct transaction detail attestation.
-
-#### Prerequisites
-
-1. Clone the TLSNotary repository:
-
-   ```bash
-   git clone https://github.com/tlsnotary/tlsn.git
-   cd tlsn
-   ```
-
-2. Have an active Wise account with recent transactions
-
-#### Setup Steps
-
-1. **Terminal 1 - Start Local Notary Server:**
-
-   ```bash
-   cd tlsn
-   cargo run --release --bin notary-server
-   ```
-
-   Expected output: "Notary server listening on 127.0.0.1:7047"
-
-2. **Terminal 2 - Configure and Run:**
-
-   ```bash
-   # Copy local testing configuration
-   cp .env.local .env
-
-   # Extract credentials manually from browser (see Usage Instructions above)
-   # Then run with your extracted credentials:
-   cargo run --release --example attestation_prove -- wise-transaction \
-     --wise-profile-id "your_profile_id" \
-     --wise-transaction-id "your_transaction_id" \
-     --wise-cookie "your_cookie_header" \
-     --wise-access-token "your_access_token"
-   ```
-
-## Security Notes
-
-- **Never commit `.env` files to version control** - they may contain sensitive credentials
-- Handle extracted credentials securely - they provide access to your Wise account
-- MPC-TLS ensures the notary server doesn't see plaintext data during transaction detail attestation
-- Credentials are only used for the duration of the proving session
-- The system directly attests payment details without exposing sensitive authentication data
-- For production use, always use the official PSE notary server (`notary.pse.dev`)
-- Wise uses modern security measures (Cloudflare Turnstile) that prevent automated login attempts
-
-## Prerequisites
-
-- Ruby & Pod for ZKP2P React Native
+- `wise-attestation.tlsn` - Cryptographic attestation  
+- `wise-secrets.tlsn` - Secret data for presentations
+- `wise-presentation.tlsn` - Selective disclosure proof
