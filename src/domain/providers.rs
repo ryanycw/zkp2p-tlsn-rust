@@ -28,7 +28,10 @@ impl ProviderConfig {
         cookie: String,
         access_token: String,
     ) -> Self {
-        debug!("Configuring {} payment verification for transaction {}", provider_type, transaction_id);
+        debug!(
+            "Configuring {} payment verification for transaction {}",
+            provider_type, transaction_id
+        );
         if let (Provider::Wise, Some(pid)) = (&provider_type, &profile_id) {
             debug!("Using Wise profile ID: {}", pid);
         }

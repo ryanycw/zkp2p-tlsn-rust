@@ -8,7 +8,7 @@ use tlsn_core::{
 };
 use tlsn_prover::ProverConfig;
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 use zkp2p_tlsn_rust::{
     config, domain,
@@ -17,12 +17,10 @@ use zkp2p_tlsn_rust::{
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = domain::ProveArgs::parse();
-    
-    // Initialize logging
     info::init_tracing().expect("Failed to initialize tracing");
 
-    // Initialize configuration
+    let args = domain::ProveArgs::parse();
+
     let app_config =
         config::AppConfig::new().map_err(|e| format!("Failed to load configuration: {}", e))?;
 
@@ -36,13 +34,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server_config = app_config.server_config(args.provider.clone());
 
-    info!("Starting ZKP2P payment attestation for {} transaction {}", 
-          args.provider, args.transaction_id);
+    info!(
+        "Starting ZKP2P payment attestation for {} transaction {}",
+        args.provider, args.transaction_id
+    );
 
     let (attestation, secrets, (header_start, header_end), field_ranges) = if args.mode
         != domain::Mode::Present
     {
-        info!("Requesting notarization from {}:{}", app_config.notary.server.host, app_config.notary.server.port);
+        info!(
+            "Requesting notarization from {}:{}",
+            app_config.notary.server.host, app_config.notary.server.port
+        );
 
         let notary_client = NotaryClient::builder()
             .host(&app_config.notary.server.host)
@@ -142,7 +145,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             text_parser::find_host_header_range(secrets.transcript().sent()).unwrap();
         let field_ranges =
             text_parser::find_field_ranges(secrets.transcript().received(), &args.provider);
-        debug!("Parsed {} field ranges for selective disclosure", field_ranges.len());
+        debug!(
+            "Parsed {} field ranges for selective disclosure",
+            field_ranges.len()
+        );
 
         (attestation, secrets, header_range, field_ranges)
     };
@@ -160,7 +166,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (start, end) in &field_ranges {
         builder.reveal_recv(&(*start..*end))?;
     }
-    debug!("Configured revelations: header + {} field ranges", field_ranges.len());
+    debug!(
+        "Configured revelations: header + {} field ranges",
+        field_ranges.len()
+    );
 
     let transcript_proof = builder.build()?;
     let crypto_provider = CryptoProvider::default();

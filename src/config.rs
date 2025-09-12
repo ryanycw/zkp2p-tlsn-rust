@@ -44,7 +44,10 @@ impl AppConfig {
                 ServerConfig { host, port }
             }
         };
-        debug!("Target server: {} (port {})", server_config.host, server_config.port);
+        debug!(
+            "Target server: {} (port {})",
+            server_config.host, server_config.port
+        );
         server_config
     }
 }

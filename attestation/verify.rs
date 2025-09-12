@@ -18,6 +18,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info::init_tracing().expect("Failed to initialize tracing");
 
     let args = ProviderArgs::parse();
+
     let app_config =
         config::AppConfig::new().map_err(|e| format!("Failed to load configuration: {}", e))?;
 

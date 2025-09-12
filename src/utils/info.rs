@@ -38,7 +38,10 @@ pub fn print_verification_results(request_data: &[u8], response_data: &[u8], pro
     let field_ranges = find_field_ranges(&response_data, &provider);
 
     if field_ranges.len() > 0 {
-        info!("Payment verification successful: {} fields verified", field_ranges.len());
+        info!(
+            "Payment verification successful: {} fields verified",
+            field_ranges.len()
+        );
     } else {
         warn!("No ZKP2P fields found in revealed data");
         info!("Request: {}", request);
