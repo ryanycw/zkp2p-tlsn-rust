@@ -16,7 +16,7 @@ git clone https://github.com/yourusername/zkp2p-tlsn-rust
 cd zkp2p-tlsn-rust
 cargo build --release
 
-# Copy configuration template  
+# Copy configuration template
 cp .env.local .env
 ```
 
@@ -25,7 +25,7 @@ cp .env.local .env
 **Manual extraction required** - Wise uses modern security that prevents automation:
 
 1. Login to [wise.com](https://wise.com) in your browser
-2. Open Developer Tools (F12) → Network tab  
+2. Open Developer Tools (F12) → Network tab
 3. Navigate to any authenticated page
 4. Click any wise.com request and copy from Request Headers:
    - `Cookie` header value
@@ -38,7 +38,7 @@ cp .env.local .env
 ```bash
 # Create cryptographic proof
 cargo run --release --bin zkp2p-prove \
-  --mode prove \
+  --mode prove-to-present \
   --provider wise \
   --profile-id "12345678" \
   --transaction-id "987654321" \
@@ -72,7 +72,7 @@ NOTARY_HOST=notary.pse.dev
 NOTARY_PORT=7047
 NOTARY_TLS=true
 
-# Wise server  
+# Wise server
 WISE_HOST=wise.com
 WISE_PORT=443
 ```
@@ -94,8 +94,9 @@ cp .env.local .env
 ## What gets proven
 
 The proof reveals only essential payment fields:
+
 - Payment amount and currency
-- Transaction ID  
+- Transaction ID
 - Payment completion status
 - Recipient identifier
 - Payment timestamp
@@ -110,13 +111,15 @@ zkp2p-verify --help          # Verification options
 ```
 
 ### Modes
-- `prove` - Generate attestation 
+
+- `prove` - Generate attestation
 - `present` - Create selective disclosure
 - `prove-to-present` - Do both in one step
 
-### Providers  
+### Providers
+
 - `wise` - Wise.com payments
-- `paypal` - PayPal payments  
+- `paypal` - PayPal payments
 
 ## Requirements
 
@@ -133,6 +136,6 @@ zkp2p-verify --help          # Verification options
 
 ## Files generated
 
-- `wise-attestation.tlsn` - Cryptographic attestation  
+- `wise-attestation.tlsn` - Cryptographic attestation
 - `wise-secrets.tlsn` - Secret data for presentations
 - `wise-presentation.tlsn` - Selective disclosure proof
