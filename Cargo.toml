@@ -3,6 +3,9 @@ name = "zkp2p-tlsn-rust"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+crate-type = ["staticlib", "rlib"]
+
 [dependencies]
 notary-client = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
 tlsn-common = { git = "https://github.com/tlsnotary/tlsn.git", tag = "v0.1.0-alpha.12" }
