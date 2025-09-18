@@ -11,8 +11,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     zkp2p_tlsn_rust::prove(
         &args.mode,
         &args.provider,
-        args.profile_id.as_deref(),
         &args.transaction_id,
+        args.profile_id.as_deref(),
         args.cookie.as_deref(),
         args.access_token.as_deref(),
     )
