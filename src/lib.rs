@@ -9,24 +9,23 @@ use tlsn_prover::ProverConfig;
 use tokio_util::compat::{FuturesAsyncReadCompatExt, TokioAsyncReadCompatExt};
 use tracing::{debug, info};
 
-use std::ffi::{CStr, CString};
-use std::os::raw::c_char;
-
 pub mod config;
 pub mod domain;
+pub mod ffi;
 pub mod utils;
 
 use config::AppConfig;
+use domain::Mode;
 use domain::{Provider, ProviderConfig};
 use utils::{file_io, notary, providers, text_parser};
 
-use crate::domain::Mode;
+pub use ffi::*;
 
 pub async fn prove(
     mode: &Mode,
     provider: &Provider,
-    profile_id: Option<&str>,
     transaction_id: &str,
+    profile_id: Option<&str>,
     cookie: Option<&str>,
     access_token: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -239,130 +238,4 @@ pub async fn verify(provider: &Provider) -> Result<(), Box<dyn std::error::Error
     );
 
     Ok(())
-}
-
-fn mode_from_int(mode: i32) -> Option<Mode> {
-    match mode {
-        0 => Some(Mode::Prove),
-        1 => Some(Mode::Present),
-        2 => Some(Mode::ProveToPresent),
-        _ => None,
-    }
-}
-
-fn provider_from_int(provider: i32) -> Option<Provider> {
-    match provider {
-        0 => Some(Provider::Wise),
-        1 => Some(Provider::PayPal),
-        _ => None,
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn ffi_prove(
-    mode: i32,
-    provider: i32,
-    profile_id: *const c_char,
-    transaction_id: *const c_char,
-    cookie: *const c_char,
-    access_token: *const c_char,
-) -> i32 {
-    let mode_enum = match mode_from_int(mode) {
-        Some(m) => m,
-        None => return 1,
-    };
-
-    let provider_enum = match provider_from_int(provider) {
-        Some(p) => p,
-        None => return 1,
-    };
-
-    if transaction_id.is_null() {
-        return 1;
-    }
-
-    let transaction_id_str = unsafe {
-        match CStr::from_ptr(transaction_id).to_str() {
-            Ok(s) => s,
-            Err(_) => return 1,
-        }
-    };
-
-    let profile_id_str = if profile_id.is_null() {
-        None
-    } else {
-        unsafe {
-            match CStr::from_ptr(profile_id).to_str() {
-                Ok(s) => Some(s),
-                Err(_) => return 1,
-            }
-        }
-    };
-
-    let cookie_str = if cookie.is_null() {
-        None
-    } else {
-        unsafe {
-            match CStr::from_ptr(cookie).to_str() {
-                Ok(s) => Some(s),
-                Err(_) => return 1,
-            }
-        }
-    };
-
-    let access_token_str = if access_token.is_null() {
-        None
-    } else {
-        unsafe {
-            match CStr::from_ptr(access_token).to_str() {
-                Ok(s) => Some(s),
-                Err(_) => return 1,
-            }
-        }
-    };
-
-    let rt = match tokio::runtime::Runtime::new() {
-        Ok(runtime) => runtime,
-        Err(_) => return 1,
-    };
-
-    match rt.block_on(prove(
-        &mode_enum,
-        &provider_enum,
-        profile_id_str,
-        transaction_id_str,
-        cookie_str,
-        access_token_str,
-    )) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn ffi_verify(provider: i32) -> i32 {
-    let provider_enum = match provider_from_int(provider) {
-        Some(p) => p,
-        None => return 1,
-    };
-
-    let rt = match tokio::runtime::Runtime::new() {
-        Ok(runtime) => runtime,
-        Err(_) => return 1,
-    };
-
-    match rt.block_on(verify(&provider_enum)) {
-        Ok(_) => 0,
-        Err(_) => 1,
-    }
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn ffi_free_string(ptr: *mut c_char) {
-    if ptr.is_null() {
-        return;
-    }
-    unsafe {
-        let _ = CString::from_raw(ptr);
-    }
 }
