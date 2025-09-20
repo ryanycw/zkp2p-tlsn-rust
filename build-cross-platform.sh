@@ -41,13 +41,7 @@ fi
 
 # Build Android (cargo-ndk builds all targets in metadata.android)
 echo "Building Android..."
-cargo ndk build --release
-
-# Copy Android libs
-cp target/aarch64-linux-android/release/libzkp2p_tlsn_rust.so libs/android/arm64-v8a/
-cp target/armv7-linux-androideabi/release/libzkp2p_tlsn_rust.so libs/android/armeabi-v7a/
-cp target/x86_64-linux-android/release/libzkp2p_tlsn_rust.so libs/android/x86_64/
-cp target/i686-linux-android/release/libzkp2p_tlsn_rust.so libs/android/x86/
+cargo ndk build --release -t x86_64-linux-android -t i686-linux-android -t armv7-linux-androideabi -t aarch64-linux-android -o libs/android
 
 # Copy iOS libs (macOS only)
 if [[ "$OSTYPE" == "darwin"* ]]; then
