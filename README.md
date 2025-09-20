@@ -134,8 +134,36 @@ zkp2p-verify --help          # Verification options
 - MPC-TLS ensures notary never sees your data
 - Cryptographic guarantees via Ethereum Foundation's TLSNotary protocol
 
+## FFI & Cross-Platform Support
+
+This library provides FFI (Foreign Function Interface) bindings for integration with other languages and platforms:
+
+- **C/C++ integration** - Auto-generated headers via cbindgen
+- **Cross-platform compilation** - Android, iOS, macOS
+- **React Native support** - Native modules for mobile development
+- **Automated testing** - C test suite for FFI validation
+
+### Quick FFI Setup
+
+```bash
+# Build with C bindings
+make build-rust
+
+# Cross-platform compilation
+make build-cross-platform
+
+# Test FFI interface
+make test
+
+# Check dependencies
+make check-deps
+```
+
+📖 **[Complete FFI Guide](doc/FFI_GUIDE.md)** - Detailed cross-platform setup, React Native integration, and troubleshooting
+
 ## Files generated
 
 - `wise-attestation.tlsn` - Cryptographic attestation
 - `wise-secrets.tlsn` - Secret data for presentations
 - `wise-presentation.tlsn` - Selective disclosure proof
+- `include/zkp2p_ffi.h` - Auto-generated C header file

@@ -45,11 +45,18 @@ cargo build --release
 # Run prover
 cargo run --release --bin zkp2p-prove -- --help
 
-# Run verifier  
+# Run verifier
 cargo run --release --bin zkp2p-verify -- --help
 
 # Test
 cargo test
+
+# FFI Development (see Makefile targets)
+make help                    # Show all available targets
+make build-rust              # Build with C bindings generation
+make build-cross-platform    # Cross-platform compilation
+make test                    # Build and test FFI interface
+make check-deps              # Verify required dependencies
 ```
 
 ## CLI Interface
@@ -141,11 +148,62 @@ cargo run --release --bin zkp2p-prove -- --mode prove-to-present --provider wise
 - **serde**: Serialization
 - **tracing**: Logging
 
+## FFI (Foreign Function Interface)
+
+The project includes comprehensive FFI support for cross-platform integration:
+
+### FFI Components
+
+- **Auto-generated C headers** (`include/zkp2p_ffi.h`) via cbindgen in `build.rs`
+- **Cross-platform compilation** via `build-cross-platform.sh` script
+- **Makefile automation** for building, testing, and dependency checking
+- **C test suite** (`tests/test_ffi.c`) for validation
+
+### FFI Functions
+
+```c
+// Core FFI interface
+int32_t zkp2p_init(void);
+void zkp2p_cleanup(void);
+int32_t zkp2p_prove(int32_t mode, int32_t provider, const char *transaction_id,
+                    const char *profile_id, const char *cookie, const char *access_token);
+int32_t zkp2p_verify(int32_t provider);
+const char *zkp2p_get_last_error(void);
+void zkp2p_free_error_string(char *ptr);
+```
+
+### Target Platforms
+
+The cross-platform build script supports:
+
+- **iOS** (macOS host only):
+  - aarch64-apple-ios (ARM64 devices)
+  - x86_64-apple-ios (Intel simulator)
+  - aarch64-apple-ios-sim (Apple Silicon simulator)
+- **Android** (via cargo-ndk):
+  - aarch64-linux-android (ARM64)
+  - armv7-linux-androideabi (ARMv7)
+  - i686-linux-android (x86)
+  - x86_64-linux-android (x86_64)
+
+Note: Desktop platforms (Linux, Windows, macOS) use standard `cargo build --release` for native development.
+
+### FFI Build Process
+
+1. **C Header Generation**: `build.rs` automatically generates `include/zkp2p_ffi.h` using cbindgen
+2. **Cross-Platform Build**: `build-cross-platform.sh` compiles for all supported targets
+3. **Library Packaging**: Organized output in `libs/` directory structure
+4. **Testing**: Automated C FFI tests ensure interface compatibility
+
 ## Current Status
 
 - ✅ Working CLI binaries
-- ✅ Wise.com integration 
+- ✅ Wise.com integration
 - ✅ PayPal provider structure (implementation pending)
 - ✅ Local and production notary support
 - ✅ Comprehensive error handling
 - ✅ Modular architecture
+- ✅ Cross-platform FFI support
+- ✅ Auto-generated C bindings
+- ✅ Makefile build automation
+- ✅ C test suite for FFI validation
