@@ -56,3 +56,13 @@ pub struct ProveArgs {
     )]
     pub access_token: Option<String>,
 }
+
+#[derive(Parser, Debug)]
+#[command(version, about = "ZKP2P TLSNotary Verifier - Verifying")]
+pub struct VerifyArgs {
+    #[clap(long, value_enum)]
+    pub provider: Provider,
+    /// Transaction ID
+    #[clap(long)]
+    pub transaction_id: String,
+}

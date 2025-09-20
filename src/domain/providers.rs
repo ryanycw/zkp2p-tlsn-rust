@@ -1,15 +1,7 @@
 use anyhow::Error;
-use clap::Parser;
 use tracing::debug;
 
 use crate::domain::Provider;
-
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct ProviderArgs {
-    #[clap(long)]
-    pub provider: Provider,
-}
 
 #[derive(Debug, Clone)]
 pub struct ProviderConfig {

@@ -138,8 +138,9 @@ pub async fn prove(
         (attestation, secrets, header_range, field_ranges)
     } else {
         info!("Loading existing attestation for presentation");
-        let attestation_path = file_io::get_file_path(&provider.to_string(), "attestation");
-        let secrets_path = file_io::get_file_path(&provider.to_string(), "secrets");
+        let attestation_path =
+            file_io::get_file_path(&provider.to_string(), transaction_id, "attestation");
+        let secrets_path = file_io::get_file_path(&provider.to_string(), transaction_id, "secrets");
 
         let attestation: Attestation = bincode::deserialize(&std::fs::read(attestation_path)?)?;
         let secrets: Secrets = bincode::deserialize(&std::fs::read(secrets_path)?)?;
@@ -158,8 +159,20 @@ pub async fn prove(
     };
 
     if *mode == Mode::Prove {
-        file_io::save_file(&provider_config.provider_type, "attestation", &attestation).await?;
-        file_io::save_file(&provider_config.provider_type, "secrets", &secrets).await?;
+        file_io::save_file(
+            &provider_config.provider_type,
+            transaction_id,
+            "attestation",
+            &attestation,
+        )
+        .await?;
+        file_io::save_file(
+            &provider_config.provider_type,
+            transaction_id,
+            "secrets",
+            &secrets,
+        )
+        .await?;
         info!("Attestation completed and saved");
         return Ok(());
     }
@@ -184,7 +197,7 @@ pub async fn prove(
     let presentation: Presentation = builder.build()?;
     debug!("Presentation built successfully");
 
-    file_io::save_file(&provider, "presentation", &presentation).await?;
+    file_io::save_file(&provider, transaction_id, "presentation", &presentation).await?;
     debug!("Presentation saved to disk");
 
     info!("Presentation completed and saved");
@@ -193,7 +206,10 @@ pub async fn prove(
     Ok(())
 }
 
-pub async fn verify(provider: &Provider) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn verify(
+    provider: &Provider,
+    transaction_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     use std::time::Duration;
     use tlsn_core::{
         presentation::{Presentation, PresentationOutput},
@@ -205,7 +221,8 @@ pub async fn verify(provider: &Provider) -> Result<(), Box<dyn std::error::Error
 
     info!("🔍 Verifying transaction presentation...");
 
-    let presentation_path = file_io::get_file_path(&provider.to_string(), "presentation");
+    let presentation_path =
+        file_io::get_file_path(&provider.to_string(), transaction_id, "presentation");
     let presentation: Presentation = bincode::deserialize(&std::fs::read(presentation_path)?)?;
     let VerifyingKey {
         alg,

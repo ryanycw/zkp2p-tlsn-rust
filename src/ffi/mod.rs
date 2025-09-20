@@ -1,8 +1,8 @@
+use once_cell::sync::OnceCell;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::sync::Mutex;
 use tokio::runtime::Runtime;
-use once_cell::sync::OnceCell;
 
 static RUNTIME: OnceCell<Runtime> = OnceCell::new();
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
@@ -46,15 +46,13 @@ unsafe fn c_str_to_rust_option(ptr: *const c_char) -> Option<&'static str> {
 #[unsafe(no_mangle)]
 pub extern "C" fn zkp2p_init() -> i32 {
     match Runtime::new() {
-        Ok(rt) => {
-            match RUNTIME.set(rt) {
-                Ok(_) => ZKP2P_SUCCESS,
-                Err(_) => {
-                    set_last_error("Runtime already initialized");
-                    ZKP2P_ERROR_INIT
-                }
+        Ok(rt) => match RUNTIME.set(rt) {
+            Ok(_) => ZKP2P_SUCCESS,
+            Err(_) => {
+                set_last_error("Runtime already initialized");
+                ZKP2P_ERROR_INIT
             }
-        }
+        },
         Err(e) => {
             set_last_error(&format!("Failed to create Tokio runtime: {}", e));
             ZKP2P_ERROR_RUNTIME
@@ -116,7 +114,14 @@ pub extern "C" fn zkp2p_prove(
         }
     };
 
-    match rt.block_on(crate::prove(&mode, &provider, transaction_id, profile_id, cookie, access_token)) {
+    match rt.block_on(crate::prove(
+        &mode,
+        &provider,
+        transaction_id,
+        profile_id,
+        cookie,
+        access_token,
+    )) {
         Ok(_) => ZKP2P_SUCCESS,
         Err(e) => {
             set_last_error(&e.to_string());
@@ -126,7 +131,7 @@ pub extern "C" fn zkp2p_prove(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_verify(provider: i32) -> i32 {
+pub extern "C" fn zkp2p_verify(provider: i32, transaction_id: *const c_char) -> i32 {
     let rt = match RUNTIME.get() {
         Some(rt) => rt,
         None => {
@@ -144,7 +149,15 @@ pub extern "C" fn zkp2p_verify(provider: i32) -> i32 {
         }
     };
 
-    match rt.block_on(crate::verify(&provider)) {
+    let transaction_id = match unsafe { c_str_to_rust_str(transaction_id) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid transaction_id string");
+            return ZKP2P_ERROR_INVALID;
+        }
+    };
+
+    match rt.block_on(crate::verify(&provider, transaction_id)) {
         Ok(_) => ZKP2P_SUCCESS,
         Err(e) => {
             set_last_error(&e.to_string());
@@ -157,12 +170,10 @@ pub extern "C" fn zkp2p_verify(provider: i32) -> i32 {
 pub extern "C" fn zkp2p_get_last_error() -> *const c_char {
     let error_guard = LAST_ERROR.lock().unwrap();
     match error_guard.as_ref() {
-        Some(error) => {
-            match CString::new(error.as_str()) {
-                Ok(c_string) => c_string.into_raw(),
-                Err(_) => std::ptr::null(),
-            }
-        }
+        Some(error) => match CString::new(error.as_str()) {
+            Ok(c_string) => c_string.into_raw(),
+            Err(_) => std::ptr::null(),
+        },
         None => std::ptr::null(),
     }
 }
