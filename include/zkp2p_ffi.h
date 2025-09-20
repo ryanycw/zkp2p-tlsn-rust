@@ -21,7 +21,7 @@ int32_t zkp2p_prove(int32_t mode,
                     const char *cookie,
                     const char *access_token);
 
-int32_t zkp2p_verify(int32_t provider);
+int32_t zkp2p_verify(int32_t provider, const char *transaction_id);
 
 const char *zkp2p_get_last_error(void);
 
