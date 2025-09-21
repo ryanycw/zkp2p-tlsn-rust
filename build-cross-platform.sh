@@ -16,14 +16,16 @@ rustup target add i686-linux-android
 rustup target add x86_64-linux-android
 
 # Create output directories
-mkdir -p libs/ios
+mkdir -p libs/ios/{arm64,arm64_x86_64-simulator}
 mkdir -p libs/android/{arm64-v8a,armeabi-v7a,x86,x86_64}
 
 # Build iOS on macOS
 if [[ "$OSTYPE" == "darwin"* ]]; then
     echo "Building iOS..."
-    cargo build --target aarch64-apple-ios --release
+    cargo build --target aarch64-apple-ios --release 
     cargo build --target x86_64-apple-ios --release
+    cargo build --target aarch64-apple-ios-sim --release
+    cp target/aarch64-apple-ios/release/libzkp2p_tlsn_rust.dylib libs/ios/arm64/libzkp2p_tlsn_rust
 fi
 
 # Set NDK path if not already set
@@ -46,9 +48,9 @@ cargo ndk build --release -t x86_64-linux-android -t i686-linux-android -t armv7
 # Copy iOS libs (macOS only)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     lipo -create \
-        target/aarch64-apple-ios/release/libzkp2p_tlsn_rust.dylib \
+        target/aarch64-apple-ios-sim/release/libzkp2p_tlsn_rust.dylib \
         target/x86_64-apple-ios/release/libzkp2p_tlsn_rust.dylib \
-        -output libs/ios/libzkp2p_tlsn_rust.dylib 2>/dev/null
+        -output libs/ios/arm64_x86_64-simulator/libzkp2p_tlsn_rust 2>/dev/null
 fi
 
 echo "Done. Libraries in libs/, header in include/"
