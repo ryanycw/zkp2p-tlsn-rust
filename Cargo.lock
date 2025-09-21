@@ -3789,6 +3789,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "tlsnprover"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "cbindgen",
+ "chrono",
+ "clap",
+ "color-eyre",
+ "config",
+ "dotenv",
+ "futures",
+ "hex",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "jni",
+ "k256",
+ "notary-client",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "spansy",
+ "tls-server-fixture",
+ "tlsn-common",
+ "tlsn-core",
+ "tlsn-formats",
+ "tlsn-prover",
+ "tlsn-server-fixture",
+ "tlsn-server-fixture-certs",
+ "tlsn-tls-core",
+ "tlsn-verifier",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-error",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "tokio"
 version = "1.46.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4708,45 +4749,4 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.104",
-]
-
-[[package]]
-name = "zkp2p-tlsn-rust"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "cbindgen",
- "chrono",
- "clap",
- "color-eyre",
- "config",
- "dotenv",
- "futures",
- "hex",
- "http-body-util",
- "hyper",
- "hyper-util",
- "jni",
- "k256",
- "notary-client",
- "once_cell",
- "regex",
- "serde",
- "serde_json",
- "spansy",
- "tls-server-fixture",
- "tlsn-common",
- "tlsn-core",
- "tlsn-formats",
- "tlsn-prover",
- "tlsn-server-fixture",
- "tlsn-server-fixture-certs",
- "tlsn-tls-core",
- "tlsn-verifier",
- "tokio",
- "tokio-util",
- "tracing",
- "tracing-error",
- "tracing-subscriber",
 ]

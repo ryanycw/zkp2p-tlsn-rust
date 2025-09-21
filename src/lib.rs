@@ -201,7 +201,7 @@ pub async fn prove(
     debug!("Presentation saved to disk");
 
     info!("Presentation completed and saved");
-    info!("Next: Run verification with 'cargo run --release --bin zkp2p-verify'");
+    info!("Next: Run verification with 'cargo run --release --bin tlsn-verify'");
 
     Ok(())
 }

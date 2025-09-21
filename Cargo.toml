@@ -1,5 +1,5 @@
 [package]
-name = "zkp2p-tlsn-rust"
+name = "tlsnprover"
 version = "0.1.0"
 edition = "2024"
 
@@ -54,9 +54,9 @@ jni = "0.21.1"
 cbindgen = "0.29.0"
 
 [[bin]]
-name = "zkp2p-prove"
+name = "tlsn-prove"
 path = "attestation/prove.rs"
 
 [[bin]]
-name = "zkp2p-verify"
+name = "tlsn-verify"
 path = "attestation/verify.rs"

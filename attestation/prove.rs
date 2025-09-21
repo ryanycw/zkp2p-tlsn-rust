@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use zkp2p_tlsn_rust::{domain, utils::info};
+use tlsnprover::{domain, utils::info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,7 +8,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = domain::ProveArgs::parse();
 
-    zkp2p_tlsn_rust::prove(
+    tlsnprover::prove(
         &args.mode,
         &args.provider,
         &args.transaction_id,

@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use zkp2p_tlsn_rust::{domain::VerifyArgs, utils::info};
+use tlsnprover::{domain::VerifyArgs, utils::info};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -8,7 +8,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let args = VerifyArgs::parse();
 
-    zkp2p_tlsn_rust::verify(&args.provider, &args.transaction_id).await?;
+    tlsnprover::verify(&args.provider, &args.transaction_id).await?;
 
     Ok(())
 }

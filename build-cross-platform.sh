@@ -25,7 +25,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     cargo build --target aarch64-apple-ios --release 
     cargo build --target x86_64-apple-ios --release
     cargo build --target aarch64-apple-ios-sim --release
-    cp target/aarch64-apple-ios/release/libzkp2p_tlsn_rust.dylib libs/ios/arm64/libzkp2p_tlsn_rust
+    cp target/aarch64-apple-ios/release/libtlsnprover.dylib libs/ios/arm64/libtlsnprover
 fi
 
 # Set NDK path if not already set
@@ -48,9 +48,9 @@ cargo ndk build --release -t x86_64-linux-android -t i686-linux-android -t armv7
 # Copy iOS libs (macOS only)
 if [[ "$OSTYPE" == "darwin"* ]]; then
     lipo -create \
-        target/aarch64-apple-ios-sim/release/libzkp2p_tlsn_rust.dylib \
-        target/x86_64-apple-ios/release/libzkp2p_tlsn_rust.dylib \
-        -output libs/ios/arm64_x86_64-simulator/libzkp2p_tlsn_rust 2>/dev/null
+        target/aarch64-apple-ios-sim/release/libtlsnprover.dylib \
+        target/x86_64-apple-ios/release/libtlsnprover.dylib \
+        -output libs/ios/arm64_x86_64-simulator/libtlsnprover 2>/dev/null
 fi
 
 echo "Done. Libraries in libs/, header in include/"
@@ -58,14 +58,13 @@ echo "✅ Cross-compilation completed successfully!"
 echo ""
 echo "📁 Output libraries:"
 echo "  iOS: libs/ios/"
-echo "    - libzkp2p_tlsn_rust.a (aarch64)"
-echo "    - libzkp2p_tlsn_rust_sim.a (x86_64 simulator)"
-echo "    - libzkp2p_tlsn_rust_universal.a (universal)"
+echo "    - arm64/libtlsnprover (arm64)"
+echo "    - arm64_x86_64-simulator/libtlsnprover (universal)"
 echo ""
 echo "  Android: libs/android/"
-echo "    - arm64-v8a/libzkp2p_tlsn_rust.so"
-echo "    - armeabi-v7a/libzkp2p_tlsn_rust.so"
-echo "    - x86/libzkp2p_tlsn_rust.so"
-echo "    - x86_64/libzkp2p_tlsn_rust.so"
+echo "    - arm64-v8a/libtlsnprover.so"
+echo "    - armeabi-v7a/libtlsnprover.so"
+echo "    - x86/libtlsnprover.so"
+echo "    - x86_64/libtlsnprover.so"
 echo ""
 echo "🎯 Ready for React Native JSI integration!"l

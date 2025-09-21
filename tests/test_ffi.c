@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/zkp2p_ffi.h"
+#include "../include/tlsn_ffi.h"
 
 /*
  * INTEGRATION TESTING CONFIGURATION
@@ -37,14 +37,14 @@ static int ENABLE_INTEGRATION_TESTS = 1;  // Set to 1 to enable integration test
 typedef enum {
     PROVIDER_WISE = 0,
     PROVIDER_PAYPAL = 1
-} zkp2p_provider_t;
+} tlsn_provider_t;
 
 // Mode constants (from args.rs)
 typedef enum {
     MODE_PROVE = 0,
     MODE_PRESENT = 1,
     MODE_PROVE_TO_PRESENT = 2
-} zkp2p_mode_t;
+} tlsn_mode_t;
 
 void load_test_credentials() {
     test_profile_id = getenv("ZKP2P_TEST_PROFILE_ID");
@@ -54,10 +54,10 @@ void load_test_credentials() {
 }
 
 void print_error_if_available() {
-    const char* error = zkp2p_get_last_error();
+    const char* error = tlsn_get_last_error();
     if (error) {
         printf("   Error: %s\n", error);
-        zkp2p_free_error_string((char*)error);
+        tlsn_free_error_string((char*)error);
     }
 }
 
@@ -69,8 +69,8 @@ int main() {
     load_test_credentials();
 
     // Test initialization
-    printf("1. Testing zkp2p_init()...\n");
-    int32_t result = zkp2p_init();
+    printf("1. Testing tlsn_init()...\n");
+    int32_t result = tlsn_init();
     if (result == 0) {
         printf("   ✅ Initialization successful\n");
     } else {
@@ -80,8 +80,8 @@ int main() {
     }
 
     // Test invalid parameters
-    printf("\n2. Testing zkp2p_prove() with invalid parameters...\n");
-    result = zkp2p_prove(-1, 0, "test", NULL, NULL, NULL);
+    printf("\n2. Testing tlsn_prove() with invalid parameters...\n");
+    result = tlsn_prove(-1, 0, "test", NULL, NULL, NULL);
     if (result != 0) {
         printf("   ✅ Invalid mode properly rejected with code: %d\n", result);
         print_error_if_available();
@@ -90,8 +90,8 @@ int main() {
     }
 
     // Test invalid provider
-    printf("\n3. Testing zkp2p_verify() with invalid provider...\n");
-    result = zkp2p_verify(99, test_transaction_id);
+    printf("\n3. Testing tlsn_verify() with invalid provider...\n");
+    result = tlsn_verify(99, test_transaction_id);
     if (result != 0) {
         printf("   ✅ Invalid provider properly rejected with code: %d\n", result);
         print_error_if_available();
@@ -104,13 +104,13 @@ int main() {
         printf("\n=== INTEGRATION TESTS ===\n");
 
         // Test prove-to-present operation (creates both attestation and presentation)
-        printf("\n4. Testing zkp2p_prove() in PROVE_TO_PRESENT mode...\n");
+        printf("\n4. Testing tlsn_prove() in PROVE_TO_PRESENT mode...\n");
         printf("   Mode: PROVE_TO_PRESENT (%d), Provider: WISE (%d)\n", MODE_PROVE_TO_PRESENT, PROVIDER_WISE);
         printf("   Profile ID: %s\n", test_profile_id ? test_profile_id : "(not set)");
         printf("   Transaction ID: %s\n", test_transaction_id ? test_transaction_id : "(not set)");
         printf("   Using credentials from environment variables...\n");
 
-        result = zkp2p_prove(
+        result = tlsn_prove(
             MODE_PROVE_TO_PRESENT,
             PROVIDER_WISE,
             test_transaction_id,
@@ -128,8 +128,8 @@ int main() {
         }
 
         // Test verify operation (should work if prove-to-present succeeded)
-        printf("\n5. Testing zkp2p_verify() with valid provider...\n");
-        result = zkp2p_verify(PROVIDER_WISE, test_transaction_id);
+        printf("\n5. Testing tlsn_verify() with valid provider...\n");
+        result = tlsn_verify(PROVIDER_WISE, test_transaction_id);
 
         if (result == 0) {
             printf("   ✅ Verify operation successful\n");
@@ -140,8 +140,8 @@ int main() {
         }
 
         // Test pure prove operation
-        printf("\n6. Testing zkp2p_prove() in PROVE mode...\n");
-        result = zkp2p_prove(
+        printf("\n6. Testing tlsn_prove() in PROVE mode...\n");
+        result = tlsn_prove(
             MODE_PROVE,
             PROVIDER_WISE,
             test_transaction_id,
@@ -159,8 +159,8 @@ int main() {
         }
 
         // Test pure present operation (uses existing attestation)
-        printf("\n7. Testing zkp2p_prove() in PRESENT mode...\n");
-        result = zkp2p_prove(
+        printf("\n7. Testing tlsn_prove() in PRESENT mode...\n");
+        result = tlsn_prove(
             MODE_PRESENT,
             PROVIDER_WISE,
             test_transaction_id,
@@ -186,8 +186,8 @@ int main() {
     }
 
     // Cleanup
-    printf("\n8. Testing zkp2p_cleanup()...\n");
-    zkp2p_cleanup();
+    printf("\n8. Testing tlsn_cleanup()...\n");
+    tlsn_cleanup();
     printf("   ✅ Cleanup completed\n");
 
     printf("\n🎉 FFI test completed!\n");

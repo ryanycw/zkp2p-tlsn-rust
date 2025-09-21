@@ -7,11 +7,11 @@ use tokio::runtime::Runtime;
 static RUNTIME: OnceCell<Runtime> = OnceCell::new();
 static LAST_ERROR: Mutex<Option<String>> = Mutex::new(None);
 
-const ZKP2P_SUCCESS: i32 = 0;
-const ZKP2P_ERROR_INIT: i32 = -1;
-const ZKP2P_ERROR_INVALID: i32 = -2;
-const ZKP2P_ERROR_RUNTIME: i32 = -3;
-const ZKP2P_ERROR_UNKNOWN: i32 = -99;
+const TLSN_SUCCESS: i32 = 0;
+const TLSN_ERROR_INIT: i32 = -1;
+const TLSN_ERROR_INVALID: i32 = -2;
+const TLSN_ERROR_RUNTIME: i32 = -3;
+const TLSN_ERROR_UNKNOWN: i32 = -99;
 
 fn set_last_error(error: &str) {
     *LAST_ERROR.lock().unwrap() = Some(error.to_string());
@@ -44,30 +44,30 @@ unsafe fn c_str_to_rust_option(ptr: *const c_char) -> Option<&'static str> {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_init() -> i32 {
+pub extern "C" fn tlsn_init() -> i32 {
     match Runtime::new() {
         Ok(rt) => match RUNTIME.set(rt) {
-            Ok(_) => ZKP2P_SUCCESS,
+            Ok(_) => TLSN_SUCCESS,
             Err(_) => {
                 set_last_error("Runtime already initialized");
-                ZKP2P_ERROR_INIT
+                TLSN_ERROR_INIT
             }
         },
         Err(e) => {
             set_last_error(&format!("Failed to create Tokio runtime: {}", e));
-            ZKP2P_ERROR_RUNTIME
+            TLSN_ERROR_RUNTIME
         }
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_cleanup() {
+pub extern "C" fn tlsn_cleanup() {
     // Clear any stored error
     *LAST_ERROR.lock().unwrap() = None;
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_prove(
+pub extern "C" fn tlsn_prove(
     mode: i32,
     provider: i32,
     transaction_id: *const c_char,
@@ -78,8 +78,8 @@ pub extern "C" fn zkp2p_prove(
     let rt = match RUNTIME.get() {
         Some(rt) => rt,
         None => {
-            set_last_error("Library not initialized. Call zkp2p_init() first.");
-            return ZKP2P_ERROR_INIT;
+            set_last_error("Library not initialized. Call tlsn_init() first.");
+            return TLSN_ERROR_INIT;
         }
     };
 
@@ -87,7 +87,7 @@ pub extern "C" fn zkp2p_prove(
         Ok(s) => s,
         Err(_) => {
             set_last_error("Invalid transaction_id string");
-            return ZKP2P_ERROR_INVALID;
+            return TLSN_ERROR_INVALID;
         }
     };
 
@@ -101,7 +101,7 @@ pub extern "C" fn zkp2p_prove(
         2 => crate::domain::Mode::ProveToPresent,
         _ => {
             set_last_error("Invalid mode value. Use 0=Prove, 1=Present, 2=ProveToPresent");
-            return ZKP2P_ERROR_INVALID;
+            return TLSN_ERROR_INVALID;
         }
     };
 
@@ -110,7 +110,7 @@ pub extern "C" fn zkp2p_prove(
         1 => crate::domain::Provider::PayPal,
         _ => {
             set_last_error("Invalid provider value. Use 0=Wise, 1=PayPal");
-            return ZKP2P_ERROR_INVALID;
+            return TLSN_ERROR_INVALID;
         }
     };
 
@@ -122,21 +122,21 @@ pub extern "C" fn zkp2p_prove(
         cookie,
         access_token,
     )) {
-        Ok(_) => ZKP2P_SUCCESS,
+        Ok(_) => TLSN_SUCCESS,
         Err(e) => {
             set_last_error(&e.to_string());
-            ZKP2P_ERROR_UNKNOWN
+            TLSN_ERROR_UNKNOWN
         }
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_verify(provider: i32, transaction_id: *const c_char) -> i32 {
+pub extern "C" fn tlsn_verify(provider: i32, transaction_id: *const c_char) -> i32 {
     let rt = match RUNTIME.get() {
         Some(rt) => rt,
         None => {
-            set_last_error("Library not initialized. Call zkp2p_init() first.");
-            return ZKP2P_ERROR_INIT;
+            set_last_error("Library not initialized. Call tlsn_init() first.");
+            return TLSN_ERROR_INIT;
         }
     };
 
@@ -145,7 +145,7 @@ pub extern "C" fn zkp2p_verify(provider: i32, transaction_id: *const c_char) -> 
         1 => crate::domain::Provider::PayPal,
         _ => {
             set_last_error("Invalid provider value. Use 0=Wise, 1=PayPal");
-            return ZKP2P_ERROR_INVALID;
+            return TLSN_ERROR_INVALID;
         }
     };
 
@@ -153,21 +153,21 @@ pub extern "C" fn zkp2p_verify(provider: i32, transaction_id: *const c_char) -> 
         Ok(s) => s,
         Err(_) => {
             set_last_error("Invalid transaction_id string");
-            return ZKP2P_ERROR_INVALID;
+            return TLSN_ERROR_INVALID;
         }
     };
 
     match rt.block_on(crate::verify(&provider, transaction_id)) {
-        Ok(_) => ZKP2P_SUCCESS,
+        Ok(_) => TLSN_SUCCESS,
         Err(e) => {
             set_last_error(&e.to_string());
-            ZKP2P_ERROR_UNKNOWN
+            TLSN_ERROR_UNKNOWN
         }
     }
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_get_last_error() -> *const c_char {
+pub extern "C" fn tlsn_get_last_error() -> *const c_char {
     let error_guard = LAST_ERROR.lock().unwrap();
     match error_guard.as_ref() {
         Some(error) => match CString::new(error.as_str()) {
@@ -179,7 +179,7 @@ pub extern "C" fn zkp2p_get_last_error() -> *const c_char {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn zkp2p_free_error_string(ptr: *mut c_char) {
+pub extern "C" fn tlsn_free_error_string(ptr: *mut c_char) {
     if !ptr.is_null() {
         unsafe {
             let _ = CString::from_raw(ptr);

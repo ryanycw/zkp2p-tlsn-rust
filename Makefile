@@ -4,7 +4,7 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c99
 RUST_LIB_DIR = target/release
-RUST_LIB_NAME = zkp2p_tlsn_rust
+RUST_LIB_NAME = tlsnprover
 INCLUDE_DIR = include
 TEST_SOURCE = tests/test_ffi.c
 TEST_BINARY = tests/test_ffi
