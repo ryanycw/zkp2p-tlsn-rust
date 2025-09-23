@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../include/tlsn_ffi.h"
+#include "../include/tlsnprover.h"
 
 /*
  * INTEGRATION TESTING CONFIGURATION

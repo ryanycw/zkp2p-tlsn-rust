@@ -8,7 +8,7 @@ fn generate_c_headers() {
     let output_dir = PathBuf::from(&crate_dir).join("include");
     std::fs::create_dir_all(&output_dir).expect("Failed to create include directory");
 
-    let header_path = output_dir.join("tlsn_ffi.h");
+    let header_path = output_dir.join("tlsnprover.h");
 
     cbindgen::Builder::new()
         .with_crate(crate_dir)
