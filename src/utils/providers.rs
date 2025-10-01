@@ -7,16 +7,14 @@ pub async fn execute_transaction_request(
     request_sender: &mut hyper::client::conn::http1::SendRequest<
         http_body_util::Empty<hyper::body::Bytes>,
     >,
+    url: &str,
     provider: &ProviderConfig,
     server: &ServerConfig,
     user_agent: &str,
 ) -> Result<()> {
-    let endpoint = provider
-        .transaction_endpoint()
-        .context("Failed to get transaction endpoint")?;
     let headers = provider.auth_headers();
     let request = build_request(
-        &endpoint,
+        &url,
         &server.host,
         &headers,
         "Requesting specific transaction details for attestation",

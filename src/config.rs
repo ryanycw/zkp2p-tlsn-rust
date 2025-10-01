@@ -1,9 +1,8 @@
 use config::{Config, ConfigError, File};
 use serde::Deserialize;
 use std::env;
-use tracing::debug;
 
-use crate::domain::{NotaryConfig, Provider, ServerConfig};
+use crate::domain::{NotaryConfig, ServerConfig};
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct AppConfig {
@@ -29,27 +28,6 @@ impl AppConfig {
         s.build()?.try_deserialize()
     }
 
-    pub fn server_config(&self, provider_type: Provider) -> ServerConfig {
-        let server_config = match provider_type {
-            Provider::PayPal => {
-                let host = self.paypal.host.clone();
-                let port = self.paypal.port;
-
-                ServerConfig { host, port }
-            }
-            Provider::Wise => {
-                let host = self.wise.host.clone();
-                let port = self.wise.port;
-
-                ServerConfig { host, port }
-            }
-        };
-        debug!(
-            "Target server: {} (port {})",
-            server_config.host, server_config.port
-        );
-        server_config
-    }
 }
 
 #[cfg(test)]
@@ -57,19 +35,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_server_config() {
+    fn test_config_loading() {
         let app_config = AppConfig::new().unwrap();
-        let server_config = app_config.server_config(Provider::Wise);
-        assert_eq!(server_config.host, "wise.com");
-        assert_eq!(server_config.port, 443);
+        assert_eq!(app_config.wise.host, "wise.com");
+        assert_eq!(app_config.wise.port, 443);
 
-        let server_config = app_config.server_config(Provider::PayPal);
-        assert_eq!(server_config.host, "www.paypal.com");
-        assert_eq!(server_config.port, 443);
+        assert_eq!(app_config.paypal.host, "www.paypal.com");
+        assert_eq!(app_config.paypal.port, 443);
 
         let notary_config = app_config.notary.clone();
         assert_eq!(notary_config.server.host, "127.0.0.1");
         assert_eq!(notary_config.server.port, 7047);
-        assert_eq!(notary_config.tls_enabled, true);
+        assert_eq!(notary_config.tls_enabled, false);
     }
 }

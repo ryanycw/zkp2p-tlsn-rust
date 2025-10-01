@@ -29,11 +29,13 @@ pub struct ProveArgs {
     /// Operation mode
     #[clap(long, value_enum)]
     pub mode: Mode,
-    #[clap(long, value_enum)]
-    pub provider: Provider,
-    /// Profile ID
-    #[clap(long)]
-    pub profile_id: Option<String>,
+    /// API endpoint URL
+    #[clap(
+        long,
+        required_if_eq("mode", "prove"),
+        required_if_eq("mode", "prove_to_present")
+    )]
+    pub url: String,
     /// Transaction ID
     #[clap(
         long,
@@ -60,8 +62,9 @@ pub struct ProveArgs {
 #[derive(Parser, Debug)]
 #[command(version, about = "ZKP2P TLSNotary Verifier - Verifying")]
 pub struct VerifyArgs {
-    #[clap(long, value_enum)]
-    pub provider: Provider,
+    /// API endpoint URL
+    #[clap(long)]
+    pub url: String,
     /// Transaction ID
     #[clap(long)]
     pub transaction_id: String,

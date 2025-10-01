@@ -69,17 +69,32 @@ pub extern "C" fn tlsn_cleanup() {
 #[unsafe(no_mangle)]
 pub extern "C" fn tlsn_prove(
     mode: i32,
-    provider: i32,
+    url: *const c_char,
     transaction_id: *const c_char,
-    profile_id: *const c_char,
     cookie: *const c_char,
     access_token: *const c_char,
+    user_agent: *const c_char,
+    provider_host: *const c_char,
+    provider_port: u16,
+    notary_host: *const c_char,
+    notary_port: u16,
+    notary_tls_enabled: bool,
+    max_sent_data: usize,
+    max_recv_data: usize,
 ) -> i32 {
     let rt = match RUNTIME.get() {
         Some(rt) => rt,
         None => {
             set_last_error("Library not initialized. Call tlsn_init() first.");
             return TLSN_ERROR_INIT;
+        }
+    };
+
+    let url = match unsafe { c_str_to_rust_str(url) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid url string");
+            return TLSN_ERROR_INVALID;
         }
     };
 
@@ -91,7 +106,30 @@ pub extern "C" fn tlsn_prove(
         }
     };
 
-    let profile_id = unsafe { c_str_to_rust_option(profile_id) };
+    let user_agent = match unsafe { c_str_to_rust_str(user_agent) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid user_agent string");
+            return TLSN_ERROR_INVALID;
+        }
+    };
+
+    let provider_host = match unsafe { c_str_to_rust_str(provider_host) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid provider_host string");
+            return TLSN_ERROR_INVALID;
+        }
+    };
+
+    let notary_host = match unsafe { c_str_to_rust_str(notary_host) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid notary_host string");
+            return TLSN_ERROR_INVALID;
+        }
+    };
+
     let cookie = unsafe { c_str_to_rust_option(cookie) };
     let access_token = unsafe { c_str_to_rust_option(access_token) };
 
@@ -105,22 +143,20 @@ pub extern "C" fn tlsn_prove(
         }
     };
 
-    let provider = match provider {
-        0 => crate::domain::Provider::Wise,
-        1 => crate::domain::Provider::PayPal,
-        _ => {
-            set_last_error("Invalid provider value. Use 0=Wise, 1=PayPal");
-            return TLSN_ERROR_INVALID;
-        }
-    };
-
     match rt.block_on(crate::prove(
         &mode,
-        &provider,
+        url,
         transaction_id,
-        profile_id,
         cookie,
         access_token,
+        user_agent,
+        provider_host,
+        provider_port,
+        notary_host,
+        notary_port,
+        notary_tls_enabled,
+        max_sent_data,
+        max_recv_data,
     )) {
         Ok(_) => TLSN_SUCCESS,
         Err(e) => {
@@ -131,7 +167,11 @@ pub extern "C" fn tlsn_prove(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn tlsn_verify(provider: i32, transaction_id: *const c_char) -> i32 {
+pub extern "C" fn tlsn_verify(
+    url: *const c_char,
+    transaction_id: *const c_char,
+    unauthed_bytes: *const c_char,
+) -> i32 {
     let rt = match RUNTIME.get() {
         Some(rt) => rt,
         None => {
@@ -140,11 +180,10 @@ pub extern "C" fn tlsn_verify(provider: i32, transaction_id: *const c_char) -> i
         }
     };
 
-    let provider = match provider {
-        0 => crate::domain::Provider::Wise,
-        1 => crate::domain::Provider::PayPal,
-        _ => {
-            set_last_error("Invalid provider value. Use 0=Wise, 1=PayPal");
+    let url = match unsafe { c_str_to_rust_str(url) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid url string");
             return TLSN_ERROR_INVALID;
         }
     };
@@ -157,7 +196,15 @@ pub extern "C" fn tlsn_verify(provider: i32, transaction_id: *const c_char) -> i
         }
     };
 
-    match rt.block_on(crate::verify(&provider, transaction_id)) {
+    let unauthed_bytes = match unsafe { c_str_to_rust_str(unauthed_bytes) } {
+        Ok(s) => s,
+        Err(_) => {
+            set_last_error("Invalid unauthed_bytes string");
+            return TLSN_ERROR_INVALID;
+        }
+    };
+
+    match rt.block_on(crate::verify(url, transaction_id, unauthed_bytes)) {
         Ok(_) => TLSN_SUCCESS,
         Err(e) => {
             set_last_error(&e.to_string());

@@ -5,19 +5,19 @@ use tracing::debug;
 
 /// Builds an HTTP request with common headers for TLSNotary attestation
 pub fn build_request(
-    uri: &str,
+    url: &str,
     server_name: &str,
     extra_headers: &[(&str, &str)],
     description: &str,
     user_agent: &str,
 ) -> Result<Request<Empty<Bytes>>, Error> {
-    debug!("Building HTTP request: {} -> {}", description, uri);
+    debug!("Building HTTP request: {} -> {}", description, url);
 
     // Using "identity" instructs the Server not to use compression for its HTTP response.
     // TLSNotary tooling does not support compression.
     let request_builder = extra_headers.iter().fold(
         Request::builder()
-            .uri(uri)
+            .uri(url)
             .header("Host", server_name)
             .header("Accept", "*/*")
             .header("Accept-Encoding", "identity")

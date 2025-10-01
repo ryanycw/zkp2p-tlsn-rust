@@ -1,9 +1,15 @@
 use tracing::info;
 
-use crate::{
-    domain::Provider,
-    utils::patterns::{HOST_HEADER_PATTERN, get_field_patterns},
-};
+use crate::domain::Provider;
+use crate::utils::patterns::{HOST_HEADER_PATTERN, get_field_patterns};
+
+pub fn parse_provider_from_url(url: &str) -> Provider {
+    match url {
+        s if s.contains("wise.com") => Provider::Wise,
+        s if s.contains("paypal.com") => Provider::PayPal,
+        _ => Provider::Wise, // Default fallback
+    }
+}
 
 pub fn find_field_ranges(response_data: &[u8], provider: &Provider) -> Vec<(usize, usize)> {
     let (headers, body) = parse_response_data(response_data);

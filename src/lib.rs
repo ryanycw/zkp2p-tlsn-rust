@@ -14,68 +14,71 @@ pub mod domain;
 pub mod ffi;
 pub mod utils;
 
-use config::AppConfig;
 use domain::Mode;
-use domain::{Provider, ProviderConfig};
+use domain::{ProviderConfig, ServerConfig};
 use utils::{file_io, notary, providers, text_parser};
 
 pub use ffi::*;
 
 pub async fn prove(
     mode: &Mode,
-    provider: &Provider,
+    url: &str,
     transaction_id: &str,
-    profile_id: Option<&str>,
     cookie: Option<&str>,
     access_token: Option<&str>,
+    user_agent: &str,
+    provider_host: &str,
+    provider_port: u16,
+    notary_host: &str,
+    notary_port: u16,
+    notary_tls_enabled: bool,
+    max_sent_data: usize,
+    max_recv_data: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let app_config =
-        AppConfig::new().map_err(|e| format!("Failed to load configuration: {}", e))?;
+    let provider = utils::text_parser::parse_provider_from_url(provider_host);
 
     let provider_config = ProviderConfig::new(
         provider.clone(),
-        profile_id.map(|s| s.to_string()),
         transaction_id.to_string(),
         cookie.unwrap_or("").to_string(),
         access_token.unwrap_or("").to_string(),
     );
 
-    let server_config = app_config.server_config(provider.clone());
+    let server_config = ServerConfig {
+        host: provider_host.to_string(),
+        port: provider_port,
+    };
 
     info!(
-        "Starting ZKP2P payment attestation for {} transaction {}",
-        provider, transaction_id
+        "Starting ZKP2P payment attestation for transaction {}",
+        transaction_id
     );
 
     let (attestation, secrets, (header_start, header_end), field_ranges) = if *mode != Mode::Present
     {
         info!(
             "Requesting notarization from {}:{}",
-            app_config.notary.server.host, app_config.notary.server.port
+            notary_host, notary_port
         );
 
         let notary_client = NotaryClient::builder()
-            .host(&app_config.notary.server.host)
-            .port(app_config.notary.server.port)
-            .enable_tls(app_config.notary.tls_enabled)
+            .host(notary_host)
+            .port(notary_port)
+            .enable_tls(notary_tls_enabled)
             .build()
             .unwrap();
         debug!("Notary client configured");
 
-        let accepted = notary::request_notarization(
-            &notary_client,
-            app_config.max_sent_data,
-            app_config.max_recv_data,
-        )
-        .await?;
+        let accepted =
+            notary::request_notarization(&notary_client, max_sent_data, max_recv_data).await?;
         debug!("Notarization request accepted");
 
         let prover_config = ProverConfig::builder()
             .server_name(server_config.host.as_str())
             .protocol_config(
                 ProtocolConfig::builder()
-                    .max_sent_data(app_config.max_sent_data)
-                    .max_recv_data(app_config.max_recv_data)
+                    .max_sent_data(max_sent_data)
+                    .max_recv_data(max_recv_data)
                     .build()?,
             )
             .crypto_provider(tlsn_core::CryptoProvider::default())
@@ -104,9 +107,10 @@ pub async fn prove(
 
         providers::execute_transaction_request(
             &mut request_sender,
+            url,
             &provider_config,
             &server_config,
-            &app_config.user_agent,
+            user_agent,
         )
         .await?;
         debug!("Transaction request executed");
@@ -159,20 +163,8 @@ pub async fn prove(
     };
 
     if *mode == Mode::Prove {
-        file_io::save_file(
-            &provider_config.provider_type,
-            transaction_id,
-            "attestation",
-            &attestation,
-        )
-        .await?;
-        file_io::save_file(
-            &provider_config.provider_type,
-            transaction_id,
-            "secrets",
-            &secrets,
-        )
-        .await?;
+        file_io::save_file(&provider, transaction_id, "attestation", &attestation).await?;
+        file_io::save_file(&provider, transaction_id, "secrets", &secrets).await?;
         info!("Attestation completed and saved");
         return Ok(());
     }
@@ -207,22 +199,26 @@ pub async fn prove(
 }
 
 pub async fn verify(
-    provider: &Provider,
+    url: &str,
     transaction_id: &str,
+    unauthed_bytes: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let provider = utils::text_parser::parse_provider_from_url(url);
+
+    let presentation_path = file_io::get_file_path(
+        provider.to_string().as_str(),
+        transaction_id,
+        "presentation",
+    );
+
     use std::time::Duration;
     use tlsn_core::{
         presentation::{Presentation, PresentationOutput},
         signing::VerifyingKey,
     };
 
-    let app_config =
-        AppConfig::new().map_err(|e| format!("Failed to load configuration: {}", e))?;
-
     info!("🔍 Verifying transaction presentation...");
 
-    let presentation_path =
-        file_io::get_file_path(&provider.to_string(), transaction_id, "presentation");
     let presentation: Presentation = bincode::deserialize(&std::fs::read(presentation_path)?)?;
     let VerifyingKey {
         alg,
@@ -241,7 +237,7 @@ pub async fn verify(
         .map_err(|e| format!("Cryptographic verification failed: {}", e))?;
 
     let mut partial_transcript = transcript.unwrap();
-    partial_transcript.set_unauthed(app_config.unauthed_bytes.as_bytes()[0]);
+    partial_transcript.set_unauthed(unauthed_bytes.as_bytes()[0]);
 
     utils::info::print_provider_info(
         &server_name.unwrap(),
