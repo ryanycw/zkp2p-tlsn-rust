@@ -70,7 +70,6 @@ pub extern "C" fn tlsn_cleanup() {
 pub extern "C" fn tlsn_prove(
     mode: i32,
     url: *const c_char,
-    transaction_id: *const c_char,
     cookie: *const c_char,
     access_token: *const c_char,
     user_agent: *const c_char,
@@ -94,14 +93,6 @@ pub extern "C" fn tlsn_prove(
         Ok(s) => s,
         Err(_) => {
             set_last_error("Invalid url string");
-            return TLSN_ERROR_INVALID;
-        }
-    };
-
-    let transaction_id = match unsafe { c_str_to_rust_str(transaction_id) } {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid transaction_id string");
             return TLSN_ERROR_INVALID;
         }
     };
@@ -146,7 +137,6 @@ pub extern "C" fn tlsn_prove(
     match rt.block_on(crate::prove(
         &mode,
         url,
-        transaction_id,
         cookie,
         access_token,
         user_agent,
@@ -167,11 +157,7 @@ pub extern "C" fn tlsn_prove(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn tlsn_verify(
-    url: *const c_char,
-    transaction_id: *const c_char,
-    unauthed_bytes: *const c_char,
-) -> i32 {
+pub extern "C" fn tlsn_verify(url: *const c_char, unauthed_bytes: *const c_char) -> i32 {
     let rt = match RUNTIME.get() {
         Some(rt) => rt,
         None => {
@@ -188,14 +174,6 @@ pub extern "C" fn tlsn_verify(
         }
     };
 
-    let transaction_id = match unsafe { c_str_to_rust_str(transaction_id) } {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid transaction_id string");
-            return TLSN_ERROR_INVALID;
-        }
-    };
-
     let unauthed_bytes = match unsafe { c_str_to_rust_str(unauthed_bytes) } {
         Ok(s) => s,
         Err(_) => {
@@ -204,7 +182,7 @@ pub extern "C" fn tlsn_verify(
         }
     };
 
-    match rt.block_on(crate::verify(url, transaction_id, unauthed_bytes)) {
+    match rt.block_on(crate::verify(url, unauthed_bytes)) {
         Ok(_) => TLSN_SUCCESS,
         Err(e) => {
             set_last_error(&e.to_string());

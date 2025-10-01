@@ -13,7 +13,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tlsnprover::prove(
         &args.mode,
         &args.url,
-        &args.transaction_id,
         args.cookie.as_deref(),
         args.access_token.as_deref(),
         &app_config.user_agent,

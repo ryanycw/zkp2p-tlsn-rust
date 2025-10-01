@@ -10,7 +10,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app_config =
         AppConfig::new().map_err(|e| format!("Failed to load configuration: {}", e))?;
 
-    tlsnprover::verify(&args.url, &args.transaction_id, &app_config.unauthed_bytes).await?;
+    tlsnprover::verify(&args.url, &app_config.unauthed_bytes).await?;
 
     Ok(())
 }

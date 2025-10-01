@@ -5,26 +5,16 @@ use crate::domain::Provider;
 #[derive(Debug, Clone)]
 pub struct ProviderConfig {
     pub provider_type: Provider,
-    pub transaction_id: String,
     pub cookie: String,
     pub access_token: String,
 }
 
 impl ProviderConfig {
-    pub fn new(
-        provider_type: Provider,
-        transaction_id: String,
-        cookie: String,
-        access_token: String,
-    ) -> Self {
-        debug!(
-            "Configuring {} payment verification for transaction {}",
-            provider_type, transaction_id
-        );
+    pub fn new(provider_type: Provider, cookie: String, access_token: String) -> Self {
+        debug!("Configuring {} payment verification", provider_type);
 
         ProviderConfig {
             provider_type,
-            transaction_id,
             cookie,
             access_token,
         }

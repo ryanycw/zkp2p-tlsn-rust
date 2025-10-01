@@ -23,7 +23,6 @@ pub use ffi::*;
 pub async fn prove(
     mode: &Mode,
     url: &str,
-    transaction_id: &str,
     cookie: Option<&str>,
     access_token: Option<&str>,
     user_agent: &str,
@@ -39,7 +38,6 @@ pub async fn prove(
 
     let provider_config = ProviderConfig::new(
         provider.clone(),
-        transaction_id.to_string(),
         cookie.unwrap_or("").to_string(),
         access_token.unwrap_or("").to_string(),
     );
@@ -49,10 +47,7 @@ pub async fn prove(
         port: provider_port,
     };
 
-    info!(
-        "Starting ZKP2P payment attestation for transaction {}",
-        transaction_id
-    );
+    info!("Starting ZKP2P payment attestation for url {}", url);
 
     let (attestation, secrets, (header_start, header_end), field_ranges) = if *mode != Mode::Present
     {
@@ -142,9 +137,8 @@ pub async fn prove(
         (attestation, secrets, header_range, field_ranges)
     } else {
         info!("Loading existing attestation for presentation");
-        let attestation_path =
-            file_io::get_file_path(&provider.to_string(), transaction_id, "attestation");
-        let secrets_path = file_io::get_file_path(&provider.to_string(), transaction_id, "secrets");
+        let attestation_path = file_io::get_file_path(&provider.to_string(), "attestation");
+        let secrets_path = file_io::get_file_path(&provider.to_string(), "secrets");
 
         let attestation: Attestation = bincode::deserialize(&std::fs::read(attestation_path)?)?;
         let secrets: Secrets = bincode::deserialize(&std::fs::read(secrets_path)?)?;
@@ -163,8 +157,8 @@ pub async fn prove(
     };
 
     if *mode == Mode::Prove {
-        file_io::save_file(&provider, transaction_id, "attestation", &attestation).await?;
-        file_io::save_file(&provider, transaction_id, "secrets", &secrets).await?;
+        file_io::save_file(&provider, "attestation", &attestation).await?;
+        file_io::save_file(&provider, "secrets", &secrets).await?;
         info!("Attestation completed and saved");
         return Ok(());
     }
@@ -189,7 +183,7 @@ pub async fn prove(
     let presentation: Presentation = builder.build()?;
     debug!("Presentation built successfully");
 
-    file_io::save_file(&provider, transaction_id, "presentation", &presentation).await?;
+    file_io::save_file(&provider, "presentation", &presentation).await?;
     debug!("Presentation saved to disk");
 
     info!("Presentation completed and saved");
@@ -198,18 +192,10 @@ pub async fn prove(
     Ok(())
 }
 
-pub async fn verify(
-    url: &str,
-    transaction_id: &str,
-    unauthed_bytes: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn verify(url: &str, unauthed_bytes: &str) -> Result<(), Box<dyn std::error::Error>> {
     let provider = utils::text_parser::parse_provider_from_url(url);
 
-    let presentation_path = file_io::get_file_path(
-        provider.to_string().as_str(),
-        transaction_id,
-        "presentation",
-    );
+    let presentation_path = file_io::get_file_path(&provider.to_string(), "presentation");
 
     use std::time::Duration;
     use tlsn_core::{

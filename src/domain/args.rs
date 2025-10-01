@@ -36,13 +36,6 @@ pub struct ProveArgs {
         required_if_eq("mode", "prove_to_present")
     )]
     pub url: String,
-    /// Transaction ID
-    #[clap(
-        long,
-        required_if_eq("mode", "prove"),
-        required_if_eq("mode", "prove_to_present")
-    )]
-    pub transaction_id: String,
     /// Session cookie
     #[clap(
         long,
@@ -65,7 +58,4 @@ pub struct VerifyArgs {
     /// API endpoint URL
     #[clap(long)]
     pub url: String,
-    /// Transaction ID
-    #[clap(long)]
-    pub transaction_id: String,
 }
