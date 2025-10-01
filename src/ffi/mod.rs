@@ -89,13 +89,7 @@ pub extern "C" fn tlsn_prove(
         }
     };
 
-    let url = match unsafe { c_str_to_rust_str(url) } {
-        Ok(s) => s,
-        Err(_) => {
-            set_last_error("Invalid url string");
-            return TLSN_ERROR_INVALID;
-        }
-    };
+    let url = unsafe { c_str_to_rust_option(url) };
 
     let user_agent = match unsafe { c_str_to_rust_str(user_agent) } {
         Ok(s) => s,

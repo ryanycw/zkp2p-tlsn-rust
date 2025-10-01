@@ -35,7 +35,7 @@ pub struct ProveArgs {
         required_if_eq("mode", "prove"),
         required_if_eq("mode", "prove_to_present")
     )]
-    pub url: String,
+    pub url: Option<String>,
     /// Session cookie
     #[clap(
         long,

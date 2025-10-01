@@ -22,7 +22,7 @@ pub use ffi::*;
 
 pub async fn prove(
     mode: &Mode,
-    url: &str,
+    url: Option<&str>,
     cookie: Option<&str>,
     access_token: Option<&str>,
     user_agent: &str,
@@ -47,7 +47,7 @@ pub async fn prove(
         port: provider_port,
     };
 
-    info!("Starting ZKP2P payment attestation for url {}", url);
+    info!("Starting ZKP2P payment attestation for url {:?}", url);
 
     let (attestation, secrets, (header_start, header_end), field_ranges) = if *mode != Mode::Present
     {
@@ -102,7 +102,7 @@ pub async fn prove(
 
         providers::execute_transaction_request(
             &mut request_sender,
-            url,
+            url.ok_or("URL is required for prove mode")?,
             &provider_config,
             &server_config,
             user_agent,
