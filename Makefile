@@ -1,12 +1,12 @@
 # ZKP2P TLSNotary FFI Testing Makefile
 
 # Variables
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c99
+CC = g++
+CFLAGS = -Wall -Wextra -std=c++11
 RUST_LIB_DIR = target/release
 RUST_LIB_NAME = tlsnprover
-INCLUDE_DIR = include
-TEST_SOURCE = tests/test_ffi.c
+INCLUDE_DIR = generated/include
+TEST_SOURCE = tests/test_ffi.cpp
 TEST_BINARY = tests/test_ffi
 
 # Detect OS for library path
@@ -31,10 +31,10 @@ help:
 	@echo "ZKP2P TLSNotary FFI Testing"
 	@echo ""
 	@echo "Targets:"
-	@echo "  test                 - Build Rust library, compile C test, and run"
-	@echo "  build-rust           - Build the Rust FFI library(generates C bindings via build.rs)"
+	@echo "  test                 - Build Rust library, compile C++ test, and run"
+	@echo "  build-rust           - Build the Rust FFI library(generates C++ bindings via build.rs)"
 	@echo "  build-cross-platform - Run cross-platform build script"
-	@echo "  build-test           - Compile the C test binary"
+	@echo "  build-test           - Compile the C++ test binary"
 	@echo "  run-test             - Run the compiled test binary"
 	@echo "  test-verbose         - Run test with verbose debug output"
 	@echo "  debug                - Build and run in debug mode"
@@ -56,7 +56,7 @@ build-rust:
 	@echo "🔨 Building Rust FFI library..."
 	cargo build --release
 	@echo "✅ Rust library built successfully"
-	@echo "✅ C bindings generated automatically via build.rs"
+	@echo "✅ C++ bindings generated automatically via build.rs"
 
 # Cross-platform compilation
 .PHONY: build-cross-platform
@@ -66,10 +66,10 @@ build-cross-platform:
 	./build-cross-platform.sh
 	@echo "✅ Cross-platform build completed"
 
-# Compile C test
+# Compile C++ test
 .PHONY: build-test
 build-test: build-rust
-	@echo "🔧 Compiling C test..."
+	@echo "🔧 Compiling C++ test..."
 	$(CC) $(CFLAGS) -o $(TEST_BINARY) $(TEST_SOURCE) \
 		-L$(RUST_LIB_DIR) -l$(RUST_LIB_NAME) -I$(INCLUDE_DIR) $(LDFLAGS)
 	@echo "✅ Test binary compiled"
@@ -154,7 +154,7 @@ test-verbose: build-test
 debug:
 	@echo "🔨 Building Rust library in debug mode..."
 	cargo build
-	@echo "🔧 Compiling C test with debug symbols..."
+	@echo "🔧 Compiling C++ test with debug symbols..."
 	$(CC) $(CFLAGS) -g -o $(TEST_BINARY) $(TEST_SOURCE) \
 		-Ltarget/debug -l$(RUST_LIB_NAME) -I$(INCLUDE_DIR) $(LDFLAGS)
 	@echo "🧪 Running debug test..."
